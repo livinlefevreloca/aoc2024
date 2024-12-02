@@ -24,7 +24,8 @@ func main() {
 		panic("Missing required args")
 	}
 
-	if problem == 1 {
+	switch problem {
+	case 1:
 		if part == 1 {
 			day1Part1(input)
 		} else if part == 2 {
@@ -32,12 +33,34 @@ func main() {
 		} else {
 			fmt.Printf("Unknown part: %d\n", part)
 		}
-	} else {
+	case 2:
+		if part == 1 {
+			day2Part1(input)
+		} else if part == 2 {
+			day2Part2(input)
+
+		} else {
+			fmt.Printf("Unknown part: %d\n", part)
+		}
+	default:
 		fmt.Printf("Unknown problem: %d\n", problem)
 	}
 
 }
 
+func check(e error) {
+	if e != nil {
+		panic(e)
+	}
+}
+
+func readInput(file string) string {
+	data, err := os.ReadFile(file)
+	check(err)
+	return string(data)
+}
+
+// Day 1
 func absDiffInt(x, y int) int {
 	if x < y {
 		return y - x
@@ -120,14 +143,95 @@ func day1Part2(inputFile string) {
 
 }
 
-func check(e error) {
-	if e != nil {
-		panic(e)
+// Day 2
+
+func day2Part1(inputFile string) {
+
+	input := readInput(inputFile)
+	lines := strings.Split(input, "\n")
+	levels := make([][]int, 0)
+	for _, line := range lines {
+		level := make([]int, 0)
+		for _, num := range strings.Fields(line) {
+			n, err := strconv.Atoi(num)
+			check(err)
+			level = append(level, n)
+		}
+		if len(level) > 0 {
+			levels = append(levels, level)
+		}
 	}
+
+	total := 0
+	for level := range levels {
+		if isSafe(levels[level]) {
+			total++
+		}
+	}
+	fmt.Printf("Got total: %d\n", total)
 }
 
-func readInput(file string) string {
-	data, err := os.ReadFile(file)
-	check(err)
-	return string(data)
+func day2Part2(inputFile string) {
+	input := readInput(inputFile)
+	lines := strings.Split(input, "\n")
+	levels := make([][]int, 0)
+	for _, line := range lines {
+		level := make([]int, 0)
+		for _, num := range strings.Fields(line) {
+			n, err := strconv.Atoi(num)
+			check(err)
+			level = append(level, n)
+		}
+		if len(level) > 0 {
+			levels = append(levels, level)
+		}
+	}
+
+	total := 0
+	for level := range levels {
+		if isSafeWithRemoval(levels[level]) {
+			total++
+		}
+	}
+	fmt.Printf("Got total: %d\n", total)
+}
+
+func isSafe(level []int) bool {
+	prev := level[0]
+	direction := 0
+	for _, num := range level[1:] {
+		if direction == 0 {
+			if num != prev {
+				direction = (num - prev) / absDiffInt(prev, num)
+			}
+		} else {
+			if num != prev && direction != (num-prev)/absDiffInt(prev, num) {
+				return false
+			}
+		}
+		if absDiffInt(prev, num) < 1 || absDiffInt(prev, num) > 3 {
+			return false
+		}
+		prev = num
+	}
+
+	return true
+}
+
+func isSafeWithRemoval(level []int) bool {
+	if !isSafe(level) {
+		for i := 0; i < len(level); i++ {
+			levelWithRemoval := make([]int, 0)
+			for j, num := range level {
+				if j != i {
+					levelWithRemoval = append(levelWithRemoval, num)
+				}
+			}
+			if isSafe(levelWithRemoval) {
+				return true
+			}
+		}
+		return false
+	}
+	return true
 }
