@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -39,6 +40,14 @@ func main() {
 		} else if part == 2 {
 			day2Part2(input)
 
+		} else {
+			fmt.Printf("Unknown part: %d\n", part)
+		}
+	case 3:
+		if part == 1 {
+			day3Part1(input)
+		} else if part == 2 {
+			day3Part2(input)
 		} else {
 			fmt.Printf("Unknown part: %d\n", part)
 		}
@@ -234,4 +243,118 @@ func isSafeWithRemoval(level []int) bool {
 		return false
 	}
 	return true
+}
+
+// Day 3
+
+func day3Part1(inputFile string) {
+	memory := readInput(inputFile)
+	total := find_muls(memory)
+	fmt.Printf("Got total: %d\n", total)
+}
+
+func find_muls(memory string) int {
+	milRe := regexp.MustCompile(`mul\((\d{1,3}),(\d{1,3})\)`)
+	muls := milRe.FindAllStringSubmatch(memory, -1)
+	total := 0
+	for _, mul := range muls {
+		a, err := strconv.Atoi(mul[1])
+		check(err)
+		b, err := strconv.Atoi(mul[2])
+		check(err)
+		total += a * b
+	}
+
+	return total
+}
+
+func day3Part2(inputFile string) {
+	memory := readInput(inputFile)
+	total := find_muls_do_dont(memory)
+	fmt.Printf("Got total: %d\n", total)
+}
+
+type Range struct {
+	lower int
+	upper int
+	on    bool
+}
+
+func (r *Range) contains(i int) bool {
+	return i <= r.upper && i >= r.lower
+}
+
+func find_muls_do_dont(memory string) int {
+	milRe := regexp.MustCompile(`mul\((\d{1,3}),(\d{1,3})\)`)
+	doRe := regexp.MustCompile(`do\(\)`)
+	dontRe := regexp.MustCompile(`don't\(\)`)
+	muls := milRe.FindAllStringSubmatch(memory, -1)
+	mulIndexes := milRe.FindAllStringIndex(memory, -1)
+	doIndexes := doRe.FindAllStringIndex(memory, -1)
+	dontIndexes := dontRe.FindAllStringIndex(memory, -1)
+
+	do := true
+
+	mulPtr := 0
+	doPtr := 0
+	dontPtr := 0
+	total := 0
+	for {
+		if mulPtr >= len(muls) {
+			break
+		}
+
+		mulIdx := mulIndexes[mulPtr][0]
+		var doIdx int
+		var dontIdx int
+
+		if doPtr >= len(doIndexes) {
+			doIdx = len(memory)
+		} else {
+			doIdx = doIndexes[doPtr][0]
+		}
+
+		if dontPtr >= len(dontIndexes) {
+			dontIdx = len(memory)
+		} else {
+			dontIdx = dontIndexes[dontPtr][0]
+		}
+
+		nextCandidates := []int{mulIdx, doIdx, dontIdx}
+		minIdx := min_of_3(nextCandidates)
+		if minIdx == 0 {
+			if do {
+				mul := muls[mulPtr]
+				a, err := strconv.Atoi(mul[1])
+				check(err)
+				b, err := strconv.Atoi(mul[2])
+				check(err)
+				total += a * b
+			}
+			mulPtr += 1
+		} else if minIdx == 1 {
+			do = true
+			doPtr += 1
+		} else {
+			do = false
+			dontPtr += 1
+		}
+	}
+
+	return total
+}
+
+func min_of_3(three []int) int {
+	if three[0] < three[1] {
+		if three[0] < three[2] {
+			return 0
+		}
+		return 2
+	}
+	if three[1] < three[2] {
+		return 1
+	}
+
+	return 2
+
 }
