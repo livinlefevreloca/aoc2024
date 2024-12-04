@@ -11,21 +11,21 @@ import (
 )
 
 func main() {
-	var problem int
+	var day int
 	var part int
 	var input string
 
-	flag.IntVar(&problem, "P", 0, "The problem to run")
+	flag.IntVar(&day, "d", 0, "The problem to run")
 	flag.IntVar(&part, "p", 0, "The part to run")
 	flag.StringVar(&input, "i", "", "The input file")
 
 	flag.Parse()
 
-	if problem == 0 || part == 0 || input == "" {
+	if day == 0 || part == 0 || input == "" {
 		panic("Missing required args")
 	}
 
-	switch problem {
+	switch day {
 	case 1:
 		if part == 1 {
 			day1Part1(input)
@@ -51,8 +51,16 @@ func main() {
 		} else {
 			fmt.Printf("Unknown part: %d\n", part)
 		}
+	case 4:
+		if part == 1 {
+			day4Part1(input)
+		} else if part == 2 {
+			day4Part2(input)
+		} else {
+			fmt.Printf("Unknown part: %d\n", part)
+		}
 	default:
-		fmt.Printf("Unknown problem: %d\n", problem)
+		fmt.Printf("Unknown day: %d\n", day)
 	}
 
 }
@@ -357,4 +365,105 @@ func min_of_3(three []int) int {
 
 	return 2
 
+}
+
+// Day 4
+
+func day4Part1(inputFile string) {
+	input := readInput(inputFile)
+	lines := strings.Split(input, "\n")
+	grid := make([][]rune, 0)
+	for _, line := range lines {
+		row := make([]rune, 0)
+		for _, letter := range line {
+			row = append(row, letter)
+		}
+		if len(row) > 0 {
+			grid = append(grid, row)
+		}
+	}
+	total := find_xmas(grid)
+
+	fmt.Printf("Got total: %d\n", total)
+}
+
+func find_xmas(grid [][]rune) int {
+	total := 0
+	for i, row := range grid {
+		for k, letter := range row {
+			if letter == 'X' {
+				total += check_xmas(grid, i, k)
+			}
+		}
+	}
+	return total
+}
+
+type Direction struct {
+	x int
+	y int
+}
+
+func check_xmas(grid [][]rune, i int, j int) int {
+	total := 0
+	xmas := []rune{'X', 'M', 'A', 'S'}
+	for _, direction := range []Direction{{0, 1}, {1, 0}, {1, 1}, {1, -1}, {0, -1}, {-1, 0}, {-1, 1}, {-1, -1}} {
+		match := true
+		for k := 0; k < 4; k++ {
+			if i+direction.x*k < 0 || i+direction.x*k >= len(grid) {
+				match = false
+				break
+			} else if j+direction.y*k < 0 || j+direction.y*k >= len(grid[i]) {
+				match = false
+				break
+			} else if grid[i+direction.x*k][j+direction.y*k] != xmas[k] {
+				match = false
+				break
+			}
+		}
+		if match {
+			total += 1
+		}
+	}
+	return total
+}
+
+func day4Part2(inputFile string) {
+	input := readInput(inputFile)
+	lines := strings.Split(input, "\n")
+	grid := make([][]rune, 0)
+	for _, line := range lines {
+		row := make([]rune, 0)
+		for _, letter := range line {
+			row = append(row, letter)
+		}
+		if len(row) > 0 {
+			grid = append(grid, row)
+		}
+	}
+	total := find_mas(grid)
+	fmt.Printf("Got total: %d\n", total)
+}
+
+func find_mas(grid [][]rune) int {
+	total := 0
+	for i, row := range grid {
+		for k, letter := range row {
+			if letter == 'A' {
+				total += check_mas(grid, i, k)
+			}
+		}
+	}
+	return total
+}
+
+func check_mas(grid [][]rune, i int, j int) int {
+	total := 0
+	// This should be burned with fire
+	if i+1 < len(grid) && j+1 < len(grid[0]) && j > 0 && i > 0 {
+		if (grid[i+1][j+1] == 'S' && grid[i-1][j-1] == 'M' || grid[i+1][j+1] == 'M' && grid[i-1][j-1] == 'S') && (grid[i+1][j-1] == 'S' && grid[i-1][j+1] == 'M' || grid[i+1][j-1] == 'M' && grid[i-1][j+1] == 'S') {
+			total += 1
+		}
+	}
+	return total
 }

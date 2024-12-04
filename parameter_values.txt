@@ -1,0 +1,2 @@
+shared_buffers - SUM({DBInstanceClassMemory/12038},-50003)
+maintenance_work_mem - GREATEST({DBInstanceClassMemory/63963136*1024},65536)
