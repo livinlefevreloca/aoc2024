@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -56,6 +57,14 @@ func main() {
 			day4Part1(input)
 		} else if part == 2 {
 			day4Part2(input)
+		} else {
+			fmt.Printf("Unknown part: %d\n", part)
+		}
+	case 5:
+		if part == 1 {
+			day5Part1(input)
+		} else if part == 2 {
+			day5Part2(input)
 		} else {
 			fmt.Printf("Unknown part: %d\n", part)
 		}
@@ -458,12 +467,152 @@ func find_mas(grid [][]rune) int {
 }
 
 func check_mas(grid [][]rune, i int, j int) int {
-	total := 0
 	// This should be burned with fire
 	if i+1 < len(grid) && j+1 < len(grid[0]) && j > 0 && i > 0 {
 		if (grid[i+1][j+1] == 'S' && grid[i-1][j-1] == 'M' || grid[i+1][j+1] == 'M' && grid[i-1][j-1] == 'S') && (grid[i+1][j-1] == 'S' && grid[i-1][j+1] == 'M' || grid[i+1][j-1] == 'M' && grid[i-1][j+1] == 'S') {
-			total += 1
+			return 1
 		}
 	}
-	return total
+	return 0
+}
+
+// Day 5
+
+func day5Part1(inputFile string) {
+	input := readInput(inputFile)
+
+	lines := strings.Split(input, "\n")
+
+	ordering := make(map[string][]string, 0)
+	updates := make([][]string, 0)
+	for _, line := range lines {
+		if strings.Contains(line, "|") {
+			before_and_after := strings.Split(line, "|")
+			before := before_and_after[0]
+			after := before_and_after[1]
+			if befores, ok := ordering[after]; ok {
+				befores = append(befores, before)
+				ordering[after] = befores
+			} else {
+				ordering[after] = []string{before}
+			}
+		} else if strings.Contains(line, ",") {
+			updates = append(updates, strings.Split(line, ","))
+		} else {
+			continue
+		}
+	}
+	updates = findCorrectUpdates(ordering, updates)
+	total := 0
+	for _, update := range updates {
+		middle := len(update) / 2
+		num, err := strconv.Atoi(update[middle])
+		check(err)
+		total += num
+	}
+	fmt.Printf("Got total: %d\n", total)
+}
+
+func findCorrectUpdates(ordering map[string][]string, updates [][]string) [][]string {
+	incorrect := make([][]string, 0)
+	for _, update := range updates {
+		correct := true
+	Update:
+		for i, step := range update {
+			if befores, ok := ordering[step]; ok {
+				for _, before := range befores {
+					if slices.Contains(update[i:], before) {
+						correct = false
+						break Update
+					}
+				}
+			} else {
+				continue
+			}
+		}
+		if correct {
+			incorrect = append(incorrect, update)
+		}
+	}
+
+	return incorrect
+
+}
+
+func day5Part2(inputFile string) {
+	input := readInput(inputFile)
+	lines := strings.Split(input, "\n")
+	ordering := make(map[string][]string, 0)
+	updates := make([][]string, 0)
+	for _, line := range lines {
+		if strings.Contains(line, "|") {
+			before_and_after := strings.Split(line, "|")
+			before := before_and_after[0]
+			after := before_and_after[1]
+			if befores, ok := ordering[after]; ok {
+				befores = append(befores, before)
+				ordering[after] = befores
+			} else {
+				ordering[after] = []string{before}
+			}
+		} else if strings.Contains(line, ",") {
+			updates = append(updates, strings.Split(line, ","))
+		} else {
+			continue
+		}
+	}
+	updates = findIncorrectUpdates(ordering, updates)
+
+	for _, update := range updates {
+		for i, step := range update {
+			befores, ok := ordering[step]
+			if ok {
+				for _, before := range befores {
+					if slices.Contains(update[:i], before) {
+						stepIdx := slices.Index(update, step)
+						beforeIdx := slices.Index(update, before)
+						for stepIdx > beforeIdx {
+							update[stepIdx], update[stepIdx-1] = update[stepIdx-1], update[stepIdx]
+							stepIdx--
+						}
+					}
+				}
+			}
+		}
+	}
+
+	total := 0
+	for _, update := range updates {
+		middle := len(update) / 2
+		num, err := strconv.Atoi(update[middle])
+		check(err)
+		total += num
+	}
+	fmt.Printf("Got total: %d\n", total)
+}
+
+func findIncorrectUpdates(ordering map[string][]string, updates [][]string) [][]string {
+	incorrect := make([][]string, 0)
+	for _, update := range updates {
+		correct := true
+	Update:
+		for i, step := range update {
+			if befores, ok := ordering[step]; ok {
+				for _, before := range befores {
+					if slices.Contains(update[i:], before) {
+						correct = false
+						break Update
+					}
+				}
+			} else {
+				continue
+			}
+		}
+		if !correct {
+			incorrect = append(incorrect, update)
+		}
+	}
+
+	return incorrect
+
 }
