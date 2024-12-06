@@ -636,41 +636,8 @@ type Position struct {
 
 func day6Part1(inputFile string) {
 	input := readInput(inputFile)
-	trimmed := strings.Trim(input, "\n")
-	lines := strings.Split(trimmed, "\n")
-	height := len(lines)
-	width := len(lines[0])
-	grid := make([][]bool, height)
 
-	for i := 0; i < height; i++ {
-		grid[i] = make([]bool, width)
-		for j := 0; j < width; j++ {
-			grid[i][j] = false
-		}
-	}
-
-	current := Position{}
-	for i, line := range lines {
-		for j, letter := range line {
-			if letter == '.' {
-			} else if letter == '#' {
-				grid[i][j] = true
-			} else if slices.Contains([]rune{'^', 'v', '<', '>'}, letter) {
-				if letter == '^' {
-					current = Position{i, j, -1, 0}
-				} else if letter == '>' {
-					current = Position{i, j, 0, 1}
-				} else if letter == 'v' {
-					current = Position{i, j, 1, 0}
-				} else if letter == '<' {
-					current = Position{i, j, 0, -1}
-				}
-			} else {
-				continue
-			}
-		}
-	}
-	fmt.Printf("Got current: %d, %d\n", current.x, current.y)
+	grid, current, height, width := parseGrid(input)
 
 	_, positions := findPath(current, grid, height, width)
 
@@ -683,21 +650,6 @@ func day6Part1(inputFile string) {
 	}
 
 	total := len(unique)
-
-	fmt.Printf("\n")
-	for i := 0; i < height; i++ {
-		for j := 0; j < width; j++ {
-			if unique[Position{i, j, 0, 0}] {
-				fmt.Printf("X")
-			} else if grid[i][j] {
-				fmt.Printf("#")
-			} else {
-				fmt.Printf(".")
-			}
-		}
-		fmt.Printf("\n")
-	}
-	fmt.Printf("\n")
 
 	fmt.Printf("Got total: %d\n", total)
 }
@@ -736,8 +688,8 @@ func findPath(current Position, grid [][]bool, height int, width int) (bool, map
 	return cycle, positions
 }
 
-func day6Part2(inputFile string) {
-	input := readInput(inputFile)
+func parseGrid(input string) ([][]bool, Position, int, int) {
+
 	trimmed := strings.Trim(input, "\n")
 	lines := strings.Split(trimmed, "\n")
 	height := len(lines)
@@ -757,21 +709,21 @@ func day6Part2(inputFile string) {
 			if letter == '.' {
 			} else if letter == '#' {
 				grid[i][j] = true
-			} else if slices.Contains([]rune{'^', 'v', '<', '>'}, letter) {
-				if letter == '^' {
-					current = Position{i, j, -1, 0}
-				} else if letter == '>' {
-					current = Position{i, j, 0, 1}
-				} else if letter == 'v' {
-					current = Position{i, j, 1, 0}
-				} else if letter == '<' {
-					current = Position{i, j, 0, -1}
-				}
+			} else if letter == '^' {
+				current = Position{i, j, -1, 0}
 			} else {
 				continue
 			}
 		}
 	}
+
+	return grid, current, height, width
+
+}
+
+func day6Part2(inputFile string) {
+	input := readInput(inputFile)
+	grid, current, height, width := parseGrid(input)
 
 	start := current
 	_, initial_path := findPath(current, grid, height, width)
