@@ -642,8 +642,9 @@ type PositionKey struct {
 
 func day6Part1(inputFile string) {
 	input := readInput(inputFile)
-	lines := strings.Split(input, "\n")
-	height := len(lines) - 1
+	trimmed := strings.Trim(input, "\n")
+	lines := strings.Split(trimmed, "\n")
+	height := len(lines)
 	width := len(lines[0])
 	grid := make([][]bool, height)
 
@@ -654,7 +655,7 @@ func day6Part1(inputFile string) {
 		}
 	}
 
-	current := &Position{}
+	current := Position{}
 	for i, line := range lines {
 		for j, letter := range line {
 			if letter == '.' {
@@ -662,23 +663,56 @@ func day6Part1(inputFile string) {
 				grid[i][j] = true
 			} else if slices.Contains([]rune{'^', 'v', '<', '>'}, letter) {
 				if letter == '^' {
-					*current = Position{i, j, &Position{-1, 0, nil}}
+					current = Position{i, j, &Position{-1, 0, nil}}
 				} else if letter == '>' {
-					*current = Position{i, j, &Position{0, 1, nil}}
+					current = Position{i, j, &Position{0, 1, nil}}
 				} else if letter == 'v' {
-					*current = Position{i, j, &Position{1, 0, nil}}
+					current = Position{i, j, &Position{1, 0, nil}}
 				} else if letter == '<' {
-					*current = Position{i, j, &Position{0, -1, nil}}
+					current = Position{i, j, &Position{0, -1, nil}}
 				}
 			} else {
 				continue
 			}
 		}
 	}
+	fmt.Printf("Got current: %d, %d\n", current.x, current.y)
 
-	positions := make(map[Position]bool, 0)
-	positions[Position{current.x, current.x, nil}] = true
+	_, positions := findPath(current, grid, height, width)
 
+	unique := make(map[PositionKey]bool, 0)
+	for position := range positions {
+		key := PositionKey{position.x, position.y, 0, 0}
+		if _, ok := unique[key]; !ok {
+			unique[key] = true
+		}
+	}
+
+	total := len(unique)
+
+	fmt.Printf("\n")
+	for i := 0; i < height; i++ {
+		for j := 0; j < width; j++ {
+			if unique[PositionKey{i, j, 0, 0}] {
+				fmt.Printf("X")
+			} else if grid[i][j] {
+				fmt.Printf("#")
+			} else {
+				fmt.Printf(".")
+			}
+		}
+		fmt.Printf("\n")
+	}
+	fmt.Printf("\n")
+
+	fmt.Printf("Got total: %d\n", total)
+}
+
+func findPath(current Position, grid [][]bool, height int, width int) (bool, map[PositionKey]bool) {
+
+	positions := make(map[PositionKey]bool, 0)
+	positions[PositionKey{current.x, current.x, current.x, current.y}] = true
+	cycle := false
 	for {
 		next := Position{
 			current.x + current.direction.x,
@@ -697,41 +731,29 @@ func day6Part1(inputFile string) {
 				nil,
 			}
 			next.direction = newDirection
-			*current.direction = *newDirection
+			current.direction = newDirection
 		} else {
-			*current = Position{current.x + current.direction.x, current.y + current.direction.y, current.direction}
+			current = Position{current.x + current.direction.x, current.y + current.direction.y, current.direction}
 		}
 
-		_, ok := positions[Position{current.x, current.y, nil}]
+		key := PositionKey{current.x, current.y, current.direction.x, current.direction.y}
+		_, ok := positions[key]
 		if !ok {
-			positions[Position{current.x, current.y, nil}] = true
+			positions[key] = true
+		} else {
+			cycle = true
+			break
 		}
 	}
 
-	total := len(positions)
-
-	fmt.Printf("\n")
-	for i := 0; i < height; i++ {
-		for j := 0; j < width; j++ {
-			if positions[Position{i, j, nil}] {
-				fmt.Printf("X")
-			} else if grid[i][j] {
-				fmt.Printf("#")
-			} else {
-				fmt.Printf(".")
-			}
-		}
-		fmt.Printf("\n")
-	}
-	fmt.Printf("\n")
-
-	fmt.Printf("Got total: %d\n", total)
+	return cycle, positions
 }
 
 func day6Part2(inputFile string) {
 	input := readInput(inputFile)
-	lines := strings.Split(input, "\n")
-	height := len(lines) - 1
+	trimmed := strings.Trim(input, "\n")
+	lines := strings.Split(trimmed, "\n")
+	height := len(lines)
 	width := len(lines[0])
 	grid := make([][]bool, height)
 
@@ -764,51 +786,37 @@ func day6Part2(inputFile string) {
 		}
 	}
 
-	cycles := 0
 	start := current
+	_, initial_path := findPath(current, grid, height, width)
+	initial_positions := make(map[PositionKey]bool, 0)
+	for position := range initial_path {
+		key := PositionKey{position.x, position.y, 0, 0}
+		if _, ok := initial_positions[key]; !ok {
+			initial_positions[key] = true
+		}
+	}
+
+	cycles := 0
 	for i := 0; i < height; i++ {
 		for j := 0; j < width; j++ {
-			positions := make(map[PositionKey]bool, 0)
+			if i == start.x && j == start.y {
+				continue
+			}
+
+			if _, ok := initial_positions[PositionKey{i, j, 0, 0}]; !ok {
+				continue
+			}
+
 			current = start
-			key := PositionKey{i, j, current.direction.x, current.direction.y}
-			positions[key] = true
 			old := grid[i][j]
 			grid[i][j] = true
-			for {
-				next := Position{
-					current.x + current.direction.x,
-					current.y + current.direction.y,
-					current.direction,
-				}
-				if (next.x < 0) || (next.x >= height) || (next.y < 0) || (next.y >= width) {
-					break
-				}
-
-				if grid[next.x][next.y] {
-					// 90 degree clockwise rotation
-					newDirection := &Position{
-						current.direction.x*0 + current.direction.y*1,
-						current.direction.x*-1 + current.direction.y*0,
-						nil,
-					}
-					current.direction = newDirection
-				} else {
-					current = Position{current.x + current.direction.x, current.y + current.direction.y, current.direction}
-				}
-
-				key := PositionKey{current.x, current.y, current.direction.x, current.direction.y}
-				_, ok := positions[key]
-				if ok {
-					cycles++
-					break
-				} else {
-					positions[key] = true
-				}
-
+			cycle, _ := findPath(current, grid, height, width)
+			if cycle {
+				cycles++
 			}
 			grid[i][j] = old
 		}
-
 	}
+
 	fmt.Printf("Got total: %d\n", cycles)
 }
