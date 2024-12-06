@@ -628,12 +628,6 @@ func findIncorrectUpdates(ordering map[string][]string, updates [][]string) [][]
 // Day 6
 
 type Position struct {
-	x         int
-	y         int
-	direction *Position
-}
-
-type PositionKey struct {
 	x  int
 	y  int
 	dx int
@@ -663,13 +657,13 @@ func day6Part1(inputFile string) {
 				grid[i][j] = true
 			} else if slices.Contains([]rune{'^', 'v', '<', '>'}, letter) {
 				if letter == '^' {
-					current = Position{i, j, &Position{-1, 0, nil}}
+					current = Position{i, j, -1, 0}
 				} else if letter == '>' {
-					current = Position{i, j, &Position{0, 1, nil}}
+					current = Position{i, j, 0, 1}
 				} else if letter == 'v' {
-					current = Position{i, j, &Position{1, 0, nil}}
+					current = Position{i, j, 1, 0}
 				} else if letter == '<' {
-					current = Position{i, j, &Position{0, -1, nil}}
+					current = Position{i, j, 0, -1}
 				}
 			} else {
 				continue
@@ -680,9 +674,9 @@ func day6Part1(inputFile string) {
 
 	_, positions := findPath(current, grid, height, width)
 
-	unique := make(map[PositionKey]bool, 0)
+	unique := make(map[Position]bool, 0)
 	for position := range positions {
-		key := PositionKey{position.x, position.y, 0, 0}
+		key := Position{position.x, position.y, 0, 0}
 		if _, ok := unique[key]; !ok {
 			unique[key] = true
 		}
@@ -693,7 +687,7 @@ func day6Part1(inputFile string) {
 	fmt.Printf("\n")
 	for i := 0; i < height; i++ {
 		for j := 0; j < width; j++ {
-			if unique[PositionKey{i, j, 0, 0}] {
+			if unique[Position{i, j, 0, 0}] {
 				fmt.Printf("X")
 			} else if grid[i][j] {
 				fmt.Printf("#")
@@ -708,16 +702,16 @@ func day6Part1(inputFile string) {
 	fmt.Printf("Got total: %d\n", total)
 }
 
-func findPath(current Position, grid [][]bool, height int, width int) (bool, map[PositionKey]bool) {
-
-	positions := make(map[PositionKey]bool, 0)
-	positions[PositionKey{current.x, current.x, current.x, current.y}] = true
+func findPath(current Position, grid [][]bool, height int, width int) (bool, map[Position]bool) {
+	positions := make(map[Position]bool, 0)
+	positions[Position{current.x, current.x, current.x, current.y}] = true
 	cycle := false
 	for {
 		next := Position{
-			current.x + current.direction.x,
-			current.y + current.direction.y,
-			current.direction,
+			current.x + current.dx,
+			current.y + current.dy,
+			current.dx,
+			current.dy,
 		}
 		if (next.x < 0) || (next.x >= height) || (next.y < 0) || (next.y >= width) {
 			break
@@ -725,21 +719,14 @@ func findPath(current Position, grid [][]bool, height int, width int) (bool, map
 
 		if grid[next.x][next.y] {
 			// 90 degree clockwise rotation
-			newDirection := &Position{
-				current.direction.x*0 + current.direction.y*1,
-				current.direction.x*-1 + current.direction.y*0,
-				nil,
-			}
-			next.direction = newDirection
-			current.direction = newDirection
+			current.dx, current.dy = current.dx*0+current.dy*1, current.dx*-1+current.dy*0
 		} else {
-			current = Position{current.x + current.direction.x, current.y + current.direction.y, current.direction}
+			current = Position{current.x + current.dx, current.y + current.dy, current.dx, current.dy}
 		}
 
-		key := PositionKey{current.x, current.y, current.direction.x, current.direction.y}
-		_, ok := positions[key]
+		_, ok := positions[current]
 		if !ok {
-			positions[key] = true
+			positions[current] = true
 		} else {
 			cycle = true
 			break
@@ -772,13 +759,13 @@ func day6Part2(inputFile string) {
 				grid[i][j] = true
 			} else if slices.Contains([]rune{'^', 'v', '<', '>'}, letter) {
 				if letter == '^' {
-					current = Position{i, j, &Position{-1, 0, nil}}
+					current = Position{i, j, -1, 0}
 				} else if letter == '>' {
-					current = Position{i, j, &Position{0, 1, nil}}
+					current = Position{i, j, 0, 1}
 				} else if letter == 'v' {
-					current = Position{i, j, &Position{1, 0, nil}}
+					current = Position{i, j, 1, 0}
 				} else if letter == '<' {
-					current = Position{i, j, &Position{0, -1, nil}}
+					current = Position{i, j, 0, -1}
 				}
 			} else {
 				continue
@@ -788,9 +775,9 @@ func day6Part2(inputFile string) {
 
 	start := current
 	_, initial_path := findPath(current, grid, height, width)
-	initial_positions := make(map[PositionKey]bool, 0)
+	initial_positions := make(map[Position]bool, 0)
 	for position := range initial_path {
-		key := PositionKey{position.x, position.y, 0, 0}
+		key := Position{position.x, position.y, 0, 0}
 		if _, ok := initial_positions[key]; !ok {
 			initial_positions[key] = true
 		}
@@ -803,7 +790,7 @@ func day6Part2(inputFile string) {
 				continue
 			}
 
-			if _, ok := initial_positions[PositionKey{i, j, 0, 0}]; !ok {
+			if _, ok := initial_positions[Position{i, j, 0, 0}]; !ok {
 				continue
 			}
 
