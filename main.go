@@ -68,6 +68,14 @@ func main() {
 		} else {
 			fmt.Printf("Unknown part: %d\n", part)
 		}
+	case 6:
+		if part == 1 {
+			day6Part1(input)
+		} else if part == 2 {
+			day6Part2(input)
+		} else {
+			fmt.Printf("Unknown part: %d\n", part)
+		}
 	default:
 		fmt.Printf("Unknown day: %d\n", day)
 	}
@@ -615,4 +623,192 @@ func findIncorrectUpdates(ordering map[string][]string, updates [][]string) [][]
 
 	return incorrect
 
+}
+
+// Day 6
+
+type Position struct {
+	x         int
+	y         int
+	direction *Position
+}
+
+type PositionKey struct {
+	x  int
+	y  int
+	dx int
+	dy int
+}
+
+func day6Part1(inputFile string) {
+	input := readInput(inputFile)
+	lines := strings.Split(input, "\n")
+	height := len(lines) - 1
+	width := len(lines[0])
+	grid := make([][]bool, height)
+
+	for i := 0; i < height; i++ {
+		grid[i] = make([]bool, width)
+		for j := 0; j < width; j++ {
+			grid[i][j] = false
+		}
+	}
+
+	current := &Position{}
+	for i, line := range lines {
+		for j, letter := range line {
+			if letter == '.' {
+			} else if letter == '#' {
+				grid[i][j] = true
+			} else if slices.Contains([]rune{'^', 'v', '<', '>'}, letter) {
+				if letter == '^' {
+					*current = Position{i, j, &Position{-1, 0, nil}}
+				} else if letter == '>' {
+					*current = Position{i, j, &Position{0, 1, nil}}
+				} else if letter == 'v' {
+					*current = Position{i, j, &Position{1, 0, nil}}
+				} else if letter == '<' {
+					*current = Position{i, j, &Position{0, -1, nil}}
+				}
+			} else {
+				continue
+			}
+		}
+	}
+
+	positions := make(map[Position]bool, 0)
+	positions[Position{current.x, current.x, nil}] = true
+
+	for {
+		next := Position{
+			current.x + current.direction.x,
+			current.y + current.direction.y,
+			current.direction,
+		}
+		if (next.x < 0) || (next.x >= height) || (next.y < 0) || (next.y >= width) {
+			break
+		}
+
+		if grid[next.x][next.y] {
+			// 90 degree clockwise rotation
+			newDirection := &Position{
+				current.direction.x*0 + current.direction.y*1,
+				current.direction.x*-1 + current.direction.y*0,
+				nil,
+			}
+			next.direction = newDirection
+			*current.direction = *newDirection
+		} else {
+			*current = Position{current.x + current.direction.x, current.y + current.direction.y, current.direction}
+		}
+
+		_, ok := positions[Position{current.x, current.y, nil}]
+		if !ok {
+			positions[Position{current.x, current.y, nil}] = true
+		}
+	}
+
+	total := len(positions)
+
+	fmt.Printf("\n")
+	for i := 0; i < height; i++ {
+		for j := 0; j < width; j++ {
+			if positions[Position{i, j, nil}] {
+				fmt.Printf("X")
+			} else if grid[i][j] {
+				fmt.Printf("#")
+			} else {
+				fmt.Printf(".")
+			}
+		}
+		fmt.Printf("\n")
+	}
+	fmt.Printf("\n")
+
+	fmt.Printf("Got total: %d\n", total)
+}
+
+func day6Part2(inputFile string) {
+	input := readInput(inputFile)
+	lines := strings.Split(input, "\n")
+	height := len(lines) - 1
+	width := len(lines[0])
+	grid := make([][]bool, height)
+
+	for i := 0; i < height; i++ {
+		grid[i] = make([]bool, width)
+		for j := 0; j < width; j++ {
+			grid[i][j] = false
+		}
+	}
+
+	current := Position{}
+	for i, line := range lines {
+		for j, letter := range line {
+			if letter == '.' {
+			} else if letter == '#' {
+				grid[i][j] = true
+			} else if slices.Contains([]rune{'^', 'v', '<', '>'}, letter) {
+				if letter == '^' {
+					current = Position{i, j, &Position{-1, 0, nil}}
+				} else if letter == '>' {
+					current = Position{i, j, &Position{0, 1, nil}}
+				} else if letter == 'v' {
+					current = Position{i, j, &Position{1, 0, nil}}
+				} else if letter == '<' {
+					current = Position{i, j, &Position{0, -1, nil}}
+				}
+			} else {
+				continue
+			}
+		}
+	}
+
+	cycles := 0
+	start := current
+	for i := 0; i < height; i++ {
+		for j := 0; j < width; j++ {
+			positions := make(map[PositionKey]bool, 0)
+			current = start
+			key := PositionKey{i, j, current.direction.x, current.direction.y}
+			positions[key] = true
+			old := grid[i][j]
+			grid[i][j] = true
+			for {
+				next := Position{
+					current.x + current.direction.x,
+					current.y + current.direction.y,
+					current.direction,
+				}
+				if (next.x < 0) || (next.x >= height) || (next.y < 0) || (next.y >= width) {
+					break
+				}
+
+				if grid[next.x][next.y] {
+					// 90 degree clockwise rotation
+					newDirection := &Position{
+						current.direction.x*0 + current.direction.y*1,
+						current.direction.x*-1 + current.direction.y*0,
+						nil,
+					}
+					current.direction = newDirection
+				} else {
+					current = Position{current.x + current.direction.x, current.y + current.direction.y, current.direction}
+				}
+
+				key := PositionKey{current.x, current.y, current.direction.x, current.direction.y}
+				_, ok := positions[key]
+				if ok {
+					cycles++
+					break
+				} else {
+					positions[key] = true
+				}
+
+			}
+			grid[i][j] = old
+		}
+
+	}
+	fmt.Printf("Got total: %d\n", cycles)
 }
