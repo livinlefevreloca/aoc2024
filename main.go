@@ -24,9 +24,6 @@ func main() {
 	flag.Parse()
 
 	switch day {
-	case 0:
-		fmt.Println("Day 0")
-		test()
 	case 1:
 		if part == 1 {
 			day1Part1(input)
@@ -888,20 +885,14 @@ func day7Part2(inputFile string) {
 
 func nextOperation(operations []int, repeat int) func() []int {
 	p := make([]int, repeat)
-	fmt.Printf("len(p): %d\n", len(p))
 	x := make([]int, len(p))
 	return func() []int {
 		p := p[:len(x)]
-		fmt.Printf("len(p): %d\n", len(p))
-		fmt.Printf("p: %v\n", p)
-		fmt.Printf("x: %v\n", x)
 		for i, xi := range x {
 			p[i] = operations[xi]
 		}
-		fmt.Printf("p after set: %v\n", p)
 		for i := len(x) - 1; i >= 0; i-- {
 			x[i]++
-			fmt.Printf("x in loop: %v\n", x)
 			if x[i] < len(operations) {
 				break
 			}
@@ -911,14 +902,6 @@ func nextOperation(operations []int, repeat int) func() []int {
 				break
 			}
 		}
-		fmt.Printf("x after loop: %v\n", x)
 		return p
-	}
-}
-
-func test() {
-	np := nextOperation([]int{0, 1, 2}, 3)
-	for i := 0; i < 27; i++ {
-		fmt.Printf("%v\n", np())
 	}
 }
