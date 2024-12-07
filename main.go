@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"math"
 	"os"
 	"regexp"
 	"slices"
@@ -22,11 +23,10 @@ func main() {
 
 	flag.Parse()
 
-	if day == 0 || part == 0 || input == "" {
-		panic("Missing required args")
-	}
-
 	switch day {
+	case 0:
+		fmt.Println("Day 0")
+		test()
 	case 1:
 		if part == 1 {
 			day1Part1(input)
@@ -73,6 +73,14 @@ func main() {
 			day6Part1(input)
 		} else if part == 2 {
 			day6Part2(input)
+		} else {
+			fmt.Printf("Unknown part: %d\n", part)
+		}
+	case 7:
+		if part == 1 {
+			day7Part1(input)
+		} else if part == 2 {
+			day7Part2(input)
 		} else {
 			fmt.Printf("Unknown part: %d\n", part)
 		}
@@ -758,4 +766,159 @@ func day6Part2(inputFile string) {
 	}
 
 	fmt.Printf("Got total: %d\n", cycles)
+}
+
+// Day 7
+func day7Part1(inputFile string) {
+	input := readInput(inputFile)
+	lines := strings.Split(strings.Trim(input, "\n"), "\n")
+	calibrations := make(map[int][]int, 0)
+	for _, line := range lines {
+		calibration := strings.Split(line, ":")
+		key_str := calibration[0]
+		value_strs := strings.Split(strings.Trim(calibration[1], " "), " ")
+		key, err := strconv.Atoi(key_str)
+		check(err)
+		values := make([]int, 0)
+		for _, value_str := range value_strs {
+			value, err := strconv.Atoi(value_str)
+			check(err)
+			values = append(values, value)
+		}
+		calibrations[key] = values
+	}
+
+	total := 0
+	for cal, values := range calibrations {
+		operations := len(values) - 1
+		combinations := intPow(2, operations)
+		for i := 0; i < combinations; i++ {
+			currentTotal := values[0]
+			for j := 0; j < operations; j++ {
+				op := getOperation(i, j)
+				if op == 1 {
+					currentTotal += values[j+1]
+				} else {
+					currentTotal *= values[j+1]
+				}
+			}
+			if currentTotal == cal {
+				total += cal
+				break
+			}
+		}
+	}
+
+	fmt.Printf("Got total: %d\n", total)
+}
+
+func intPow(x, y int) int {
+	return int(math.Pow(float64(x), float64(y)))
+}
+
+func sum(values []int) int {
+	total := 0
+	for _, value := range values {
+		total += value
+	}
+	return total
+}
+
+func product(values []int) int {
+	total := 1
+	for _, value := range values {
+		total *= value
+	}
+	return total
+}
+
+func getOperation(i int, opIdx int) int {
+	return (i >> opIdx) & 1
+}
+
+func day7Part2(inputFile string) {
+	input := readInput(inputFile)
+	lines := strings.Split(strings.Trim(input, "\n"), "\n")
+	calibrations := make(map[int][]int, 0)
+	for _, line := range lines {
+		calibration := strings.Split(line, ":")
+		key_str := calibration[0]
+		value_strs := strings.Split(strings.Trim(calibration[1], " "), " ")
+		key, err := strconv.Atoi(key_str)
+		check(err)
+		values := make([]int, 0)
+		for _, value_str := range value_strs {
+			value, err := strconv.Atoi(value_str)
+			check(err)
+			values = append(values, value)
+		}
+		calibrations[key] = values
+	}
+
+	total := 0
+	for cal, values := range calibrations {
+		var err error
+		combinationsCount := intPow(3, len(values)-1)
+		operations := len(values) - 1
+		nextOp := nextOperation([]int{0, 1, 2}, operations)
+		for i := 0; i < combinationsCount; i++ {
+			ops := nextOp()
+			currentTotal := values[0]
+			for j, op := range ops {
+				if op == 0 {
+					currentTotal += values[j+1]
+				} else if op == 1 {
+					currentTotal *= values[j+1]
+				} else {
+					left := strconv.Itoa(currentTotal)
+					right := strconv.Itoa(values[j+1])
+					currentTotal, err = strconv.Atoi(strings.Join([]string{left, right}, ""))
+					check(err)
+				}
+			}
+			if currentTotal == cal {
+				total += cal
+				break
+			}
+		}
+	}
+
+	fmt.Printf("Got total: %d\n", total)
+}
+
+func nextOperation(operations []int, repeat int) func() []int {
+	p := make([]int, repeat)
+	fmt.Printf("len(p): %d\n", len(p))
+	x := make([]int, len(p))
+	return func() []int {
+		p := p[:len(x)]
+		fmt.Printf("len(p): %d\n", len(p))
+		fmt.Printf("p: %v\n", p)
+		fmt.Printf("x: %v\n", x)
+		for i, xi := range x {
+			p[i] = operations[xi]
+		}
+		fmt.Printf("p after set: %v\n", p)
+		for i := len(x) - 1; i >= 0; i-- {
+			x[i]++
+			fmt.Printf("x in loop: %v\n", x)
+			if x[i] < len(operations) {
+				break
+			}
+			x[i] = 0
+			if i <= 0 {
+				x = x[0:0]
+				break
+			}
+		}
+		fmt.Printf("x after loop: %v\n", x)
+		return p
+	}
+}
+
+func test() {
+	np := nextOperation([]int{0, 1, 2}, 3)
+	for i := 0; i < 27; i++ {
+		fmt.Printf("%v\n", np())
+	}
 }
