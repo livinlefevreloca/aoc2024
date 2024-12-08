@@ -768,73 +768,33 @@ func day6Part2(inputFile string) {
 // Day 7
 func day7Part1(inputFile string) {
 	input := readInput(inputFile)
-	lines := strings.Split(strings.Trim(input, "\n"), "\n")
-	calibrations := make(map[int][]int, 0)
-	for _, line := range lines {
-		calibration := strings.Split(line, ":")
-		key_str := calibration[0]
-		value_strs := strings.Split(strings.Trim(calibration[1], " "), " ")
-		key, err := strconv.Atoi(key_str)
-		check(err)
-		values := make([]int, 0)
-		for _, value_str := range value_strs {
-			value, err := strconv.Atoi(value_str)
-			check(err)
-			values = append(values, value)
-		}
-		calibrations[key] = values
-	}
-
+	calibrations := parseCalibration(input)
+	operations := map[int]func(int, int) int{0: sum, 1: product}
 	total := 0
 	for cal, values := range calibrations {
-		operations := len(values) - 1
-		combinations := intPow(2, operations)
-		for i := 0; i < combinations; i++ {
-			currentTotal := values[0]
-			for j := 0; j < operations; j++ {
-				op := getOperation(i, j)
-				if op == 1 {
-					currentTotal += values[j+1]
-				} else {
-					currentTotal *= values[j+1]
-				}
-			}
-			if currentTotal == cal {
-				total += cal
-				break
-			}
+		if isValidCalibration(cal, values, operations) {
+			total += cal
 		}
 	}
 
 	fmt.Printf("Got total: %d\n", total)
-}
-
-func intPow(x, y int) int {
-	return int(math.Pow(float64(x), float64(y)))
-}
-
-func sum(values []int) int {
-	total := 0
-	for _, value := range values {
-		total += value
-	}
-	return total
-}
-
-func product(values []int) int {
-	total := 1
-	for _, value := range values {
-		total *= value
-	}
-	return total
-}
-
-func getOperation(i int, opIdx int) int {
-	return (i >> opIdx) & 1
 }
 
 func day7Part2(inputFile string) {
 	input := readInput(inputFile)
+	calibrations := parseCalibration(input)
+	total := 0
+	operations := map[int]func(int, int) int{0: sum, 1: product, 2: concat}
+	for cal, values := range calibrations {
+		if isValidCalibration(cal, values, operations) {
+			total += cal
+		}
+	}
+
+	fmt.Printf("Got total: %d\n", total)
+}
+
+func parseCalibration(input string) map[int][]int {
 	lines := strings.Split(strings.Trim(input, "\n"), "\n")
 	calibrations := make(map[int][]int, 0)
 	for _, line := range lines {
@@ -852,56 +812,46 @@ func day7Part2(inputFile string) {
 		calibrations[key] = values
 	}
 
-	total := 0
-	for cal, values := range calibrations {
-		var err error
-		combinationsCount := intPow(3, len(values)-1)
-		operations := len(values) - 1
-		nextOp := nextOperation([]int{0, 1, 2}, operations)
-		for i := 0; i < combinationsCount; i++ {
-			ops := nextOp()
-			currentTotal := values[0]
-			for j, op := range ops {
-				if op == 0 {
-					currentTotal += values[j+1]
-				} else if op == 1 {
-					currentTotal *= values[j+1]
-				} else {
-					left := strconv.Itoa(currentTotal)
-					right := strconv.Itoa(values[j+1])
-					currentTotal, err = strconv.Atoi(strings.Join([]string{left, right}, ""))
-					check(err)
-				}
-			}
-			if currentTotal == cal {
-				total += cal
-				break
-			}
-		}
-	}
-
-	fmt.Printf("Got total: %d\n", total)
+	return calibrations
 }
 
-func nextOperation(operations []int, repeat int) func() []int {
-	p := make([]int, repeat)
-	x := make([]int, len(p))
-	return func() []int {
-		p := p[:len(x)]
-		for i, xi := range x {
-			p[i] = operations[xi]
-		}
-		for i := len(x) - 1; i >= 0; i-- {
-			x[i]++
-			if x[i] < len(operations) {
-				break
-			}
-			x[i] = 0
-			if i <= 0 {
-				x = x[0:0]
-				break
+func isValidCalibration(calibration int, values []int, operations map[int]func(int, int) int) bool {
+	currentStates := make([]int, 0)
+	currentStates = append(currentStates, values[0])
+	for _, value := range values[1:] {
+		newStates := make([]int, 0)
+		for _, state := range currentStates {
+			for _, op := range operations {
+				newState := op(state, value)
+				if newState > calibration {
+					continue
+				}
+				newStates = append(newStates, newState)
 			}
 		}
-		return p
+		currentStates = newStates
 	}
+
+	for _, state := range currentStates {
+		if state == calibration {
+			return true
+		}
+	}
+	return false
+}
+
+func sum(a int, b int) int {
+	return a + b
+}
+
+func product(a int, b int) int {
+	return a * b
+}
+
+func concat(a int, b int) int {
+	return a*10 ^ int(math.Log10(float64(b))+1) + b
+}
+
+func getOperation(i int, opIdx int) int {
+	return (i >> opIdx) & 1
 }
