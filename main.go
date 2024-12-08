@@ -81,6 +81,14 @@ func main() {
 		} else {
 			fmt.Printf("Unknown part: %d\n", part)
 		}
+	case 8:
+		if part == 1 {
+			day8Part1(input)
+		} else if part == 2 {
+			day8Part2(input)
+		} else {
+			fmt.Printf("Unknown part: %d\n", part)
+		}
 	default:
 		fmt.Printf("Unknown day: %d\n", day)
 	}
@@ -854,4 +862,148 @@ func concat(a int, b int) int {
 
 func getOperation(i int, opIdx int) int {
 	return (i >> opIdx) & 1
+}
+
+// Day 8
+type Location struct {
+	x int
+	y int
+}
+
+type Slope struct {
+	dx int
+	dy int
+}
+
+func day8Part1(inputFile string) {
+	input := readInput(inputFile)
+	trimmed := strings.Trim(input, "\n")
+	lines := strings.Split(trimmed, "\n")
+	locationMap := make(map[string][]Location, 0)
+	antiNodes := make(map[Location]bool, 0)
+	for i, line := range lines {
+		for j, letter := range strings.Split(line, "") {
+			if letter != "." {
+				newLocation := Location{i, j}
+				if _, ok := locationMap[letter]; ok {
+					for _, location := range locationMap[letter] {
+						slope := calculateSlope(newLocation, location)
+						negativeSlope := Slope{-slope.dx, -slope.dy}
+						pairs := []struct {
+							loc   Location
+							slope Slope
+						}{
+							{newLocation, slope},
+							{newLocation, negativeSlope},
+							{location, slope},
+							{location, negativeSlope},
+						}
+						for _, pair := range pairs {
+							checkLocation := Location{pair.loc.x + pair.slope.dx, pair.loc.y + pair.slope.dy}
+							if isInBounds(checkLocation, len(lines), len(lines[0])) {
+								if checkLocation != newLocation && checkLocation != location {
+									antiNodes[checkLocation] = true
+								}
+							}
+						}
+
+					}
+					locationMap[letter] = append(locationMap[letter], newLocation)
+				} else {
+					locationMap[letter] = []Location{newLocation}
+				}
+			}
+		}
+	}
+
+	for i, line := range lines {
+		for j, letter := range strings.Split(line, "") {
+			if _, ok := antiNodes[Location{i, j}]; ok {
+				fmt.Printf("#")
+			} else {
+				fmt.Printf("%s", letter)
+			}
+		}
+
+		fmt.Printf(" ")
+		for _, letter := range strings.Split(line, "") {
+			fmt.Printf("%s", letter)
+		}
+		fmt.Printf("\n")
+	}
+
+	fmt.Printf("Got total: %d\n", len(antiNodes))
+}
+
+func isInBounds(location Location, height int, width int) bool {
+	return location.x >= 0 && location.x < height && location.y >= 0 && location.y < width
+}
+
+func calculateSlope(location1 Location, location2 Location) Slope {
+	dx := location2.x - location1.x
+	dy := location2.y - location1.y
+	return Slope{dx, dy}
+}
+
+func day8Part2(inputFile string) {
+	input := readInput(inputFile)
+	trimmed := strings.Trim(input, "\n")
+	lines := strings.Split(trimmed, "\n")
+	locationMap := make(map[string][]Location, 0)
+	antiNodes := make(map[Location]bool, 0)
+	for i, line := range lines {
+		for j, letter := range strings.Split(line, "") {
+			if letter != "." {
+				newLocation := Location{i, j}
+				if _, ok := locationMap[letter]; ok {
+					for _, location := range locationMap[letter] {
+						slope := calculateSlope(newLocation, location)
+						negativeSlope := Slope{-slope.dx, -slope.dy}
+						offset := 1
+						for {
+							locationsToCheck := []Location{
+								{newLocation.x + slope.dx*offset, newLocation.y + slope.dy*offset},
+								{newLocation.x + negativeSlope.dx*offset, newLocation.y + negativeSlope.dy*offset},
+								{location.x + slope.dx*offset, location.y + slope.dy*offset},
+								{location.x + negativeSlope.dx*offset, location.y + negativeSlope.dy*offset},
+							}
+							outOfBoundsCount := 0
+							for _, checkLocation := range locationsToCheck {
+								if isInBounds(checkLocation, len(lines), len(lines[0])) {
+									antiNodes[checkLocation] = true
+								} else {
+									outOfBoundsCount++
+								}
+							}
+							if outOfBoundsCount == 4 {
+								break
+							}
+							offset++
+						}
+					}
+					locationMap[letter] = append(locationMap[letter], newLocation)
+				} else {
+					locationMap[letter] = []Location{newLocation}
+				}
+			}
+		}
+	}
+
+	for i, line := range lines {
+		for j, letter := range strings.Split(line, "") {
+			if _, ok := antiNodes[Location{i, j}]; ok {
+				fmt.Printf("#")
+			} else {
+				fmt.Printf("%s", letter)
+			}
+		}
+
+		fmt.Printf(" ")
+		for _, letter := range strings.Split(line, "") {
+			fmt.Printf("%s", letter)
+		}
+		fmt.Printf("\n")
+	}
+
+	fmt.Printf("Got total: %d\n", len(antiNodes))
 }
