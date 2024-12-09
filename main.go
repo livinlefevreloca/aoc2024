@@ -1036,14 +1036,6 @@ func day9Part1(inputFile string) {
 		}
 		isBlock = !isBlock
 	}
-	for _, num := range fileArray {
-		if num == -1 {
-			fmt.Printf(".")
-		} else {
-			fmt.Printf("%d", num)
-		}
-	}
-	fmt.Printf("\n")
 
 	free := 0
 	for i := len(fileArray) - 1; i > 0; i-- {
@@ -1063,14 +1055,6 @@ func day9Part1(inputFile string) {
 		}
 		fileArray[free], fileArray[i] = fileArray[i], fileArray[free]
 	}
-	for _, num := range fileArray {
-		if num == -1 {
-			fmt.Printf(".")
-		} else {
-			fmt.Printf("%d", num)
-		}
-	}
-	fmt.Printf("\n")
 
 	checksum := 0
 	for i := 0; i < len(fileArray); i++ {
