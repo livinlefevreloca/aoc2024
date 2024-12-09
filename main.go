@@ -917,17 +917,17 @@ func day8Part1(inputFile string) {
 	}
 
 	for i, line := range lines {
+
+		for _, letter := range strings.Split(line, "") {
+			fmt.Printf("%s", letter)
+		}
+		fmt.Printf(" ")
 		for j, letter := range strings.Split(line, "") {
 			if _, ok := antiNodes[Location{i, j}]; ok {
 				fmt.Printf("#")
 			} else {
 				fmt.Printf("%s", letter)
 			}
-		}
-
-		fmt.Printf(" ")
-		for _, letter := range strings.Split(line, "") {
-			fmt.Printf("%s", letter)
 		}
 		fmt.Printf("\n")
 	}
@@ -990,17 +990,17 @@ func day8Part2(inputFile string) {
 	}
 
 	for i, line := range lines {
+
+		for _, letter := range strings.Split(line, "") {
+			fmt.Printf("%s", letter)
+		}
+		fmt.Printf(" ")
 		for j, letter := range strings.Split(line, "") {
 			if _, ok := antiNodes[Location{i, j}]; ok {
 				fmt.Printf("#")
 			} else {
 				fmt.Printf("%s", letter)
 			}
-		}
-
-		fmt.Printf(" ")
-		for _, letter := range strings.Split(line, "") {
-			fmt.Printf("%s", letter)
 		}
 		fmt.Printf("\n")
 	}
