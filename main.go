@@ -1168,3 +1168,122 @@ func day9Part2(inputFile string) {
 
 	fmt.Printf("Got checksum: %d\n", checksum)
 }
+
+// Use Memoization of freespace sizes to speed up the process.
+// Original solution took ~260ms, this one takes 25ms
+func day9Part2Improved(inputFile string) {
+	input := readInput(inputFile)
+	trimmed := strings.Trim(input, "\n")
+	fileArray := make([]int, 0)
+	isBlock := true
+	fileIdx := 0
+	for _, letter := range strings.Split(trimmed, "") {
+		num, err := strconv.Atoi(letter)
+		check(err)
+		insert := -1
+		if isBlock {
+			insert = fileIdx
+			fileIdx++
+		}
+		for i := 0; i < num; i++ {
+			fileArray = append(fileArray, insert)
+		}
+		isBlock = !isBlock
+	}
+
+	// Build a map of free spaces
+	freeSpacesMap := make(map[int][]Space, 0)
+	for i := 0; i < len(fileArray); i++ {
+		if fileArray[i] != -1 {
+			continue
+		}
+		space := Space{i, i}
+		for i < len(fileArray) && fileArray[i] == -1 {
+			space.end = i
+			i++
+		}
+		size := space.end - space.start + 1
+		if _, ok := freeSpacesMap[size]; ok {
+			freeSpacesMap[size] = append(freeSpacesMap[size], space)
+			slices.SortFunc(freeSpacesMap[size], func(i, j Space) int {
+				return i.start - j.start
+			})
+
+		} else {
+			freeSpacesMap[size] = []Space{space}
+		}
+	}
+
+	// While there are files to move
+	end := len(fileArray) - 1
+	for end > 0 {
+		// Find the rightmost most file from end
+		currentFile := Space{end, end}
+		for currentFile.start-1 >= 0 && fileArray[currentFile.start-1] == fileArray[currentFile.end] {
+			currentFile.start--
+		}
+		fileSize := currentFile.end - currentFile.start + 1
+
+		// Check if there is a free space of the same size or larger
+		size := fileSize
+		freeSpaces, ok := freeSpacesMap[size]
+		for !ok && size <= len(freeSpacesMap) {
+			size++
+			freeSpaces, ok = freeSpacesMap[size]
+		}
+
+		// If there is no free space of the same size or larger, or
+		// the freespace found is too the right of the current file
+		// We skip the file. we know there will not be another free space
+		// since we keep them in sorted order by start index
+		if !ok || len(freeSpaces) == 0 || freeSpaces[0].start > currentFile.start {
+			end = currentFile.start - 1
+			for end >= 0 && fileArray[end] == -1 {
+				end--
+			}
+			continue
+		}
+
+		// Remove the matched freespace from  its size group
+		freeSpace := freeSpaces[0]
+		freeSpacesMap[size] = freeSpaces[1:]
+
+		// Swap the file into the free space counting down the
+		// number of free blocks filled in with the file
+		freeSize := freeSpace.end - freeSpace.start + 1
+		for i := 0; i < fileSize; i++ {
+			fileArray[freeSpace.start] = fileArray[currentFile.start+i]
+			fileArray[currentFile.start+i] = -1
+			freeSize--
+			freeSpace.start++
+		}
+
+		// Update the free space map with the new free space
+		// putting it into the correct size group and keeping
+		// the groups sorted by start index
+		spaces := freeSpacesMap[freeSize]
+		for i, space := range spaces {
+			if space.start > freeSpace.start {
+				freeSpacesMap[freeSize] = append(spaces[:i], append([]Space{freeSpace}, spaces[i:]...)...)
+				break
+			}
+		}
+
+		// move end to the end of the next non freespace block
+		end = currentFile.start - 1
+		for end >= 0 && fileArray[end] == -1 {
+			end--
+		}
+	}
+
+	// Calculate the checksum
+	checksum := 0
+	for i := 0; i < len(fileArray); i++ {
+		if fileArray[i] == -1 {
+			continue
+		}
+		checksum += fileArray[i] * i
+	}
+
+	fmt.Printf("Got checksum: %d\n", checksum)
+}
