@@ -89,6 +89,14 @@ func main() {
 		} else {
 			fmt.Printf("Unknown part: %d\n", part)
 		}
+	case 9:
+		if part == 1 {
+			day9Part1(input)
+		} else if part == 2 {
+			day9Part2(input)
+		} else {
+			fmt.Printf("Unknown part: %d\n", part)
+		}
 	default:
 		fmt.Printf("Unknown day: %d\n", day)
 	}
@@ -1006,4 +1014,173 @@ func day8Part2(inputFile string) {
 	}
 
 	fmt.Printf("Got total: %d\n", len(antiNodes))
+}
+
+// Day 9
+func day9Part1(inputFile string) {
+	input := readInput(inputFile)
+	trimmed := strings.Trim(input, "\n")
+	fileArray := make([]int, 0)
+	isBlock := true
+	fileIdx := 0
+	for _, letter := range strings.Split(trimmed, "") {
+		num, err := strconv.Atoi(letter)
+		check(err)
+		insert := -1
+		if isBlock {
+			insert = fileIdx
+			fileIdx++
+		}
+		for i := 0; i < num; i++ {
+			fileArray = append(fileArray, insert)
+		}
+		isBlock = !isBlock
+	}
+	for _, num := range fileArray {
+		if num == -1 {
+			fmt.Printf(".")
+		} else {
+			fmt.Printf("%d", num)
+		}
+	}
+	fmt.Printf("\n")
+
+	free := 0
+	for i := len(fileArray) - 1; i > 0; i-- {
+		if fileArray[i] == -1 {
+			continue
+		}
+		foundEnd := false
+		for fileArray[free] != -1 {
+			free++
+			if free >= i {
+				foundEnd = true
+				break
+			}
+		}
+		if foundEnd {
+			break
+		}
+		fileArray[free], fileArray[i] = fileArray[i], fileArray[free]
+	}
+	for _, num := range fileArray {
+		if num == -1 {
+			fmt.Printf(".")
+		} else {
+			fmt.Printf("%d", num)
+		}
+	}
+	fmt.Printf("\n")
+
+	checksum := 0
+	for i := 0; i < len(fileArray); i++ {
+		if fileArray[i] == -1 {
+			continue
+		}
+		checksum += fileArray[i] * i
+	}
+
+	fmt.Printf("Got checksum: %d\n", checksum)
+
+}
+
+type Space struct {
+	start int
+	end   int
+}
+
+func day9Part2(inputFile string) {
+	input := readInput(inputFile)
+	trimmed := strings.Trim(input, "\n")
+	fileArray := make([]int, 0)
+	isBlock := true
+	fileIdx := 0
+	for _, letter := range strings.Split(trimmed, "") {
+		num, err := strconv.Atoi(letter)
+		check(err)
+		insert := -1
+		if isBlock {
+			insert = fileIdx
+			fileIdx++
+		}
+		for i := 0; i < num; i++ {
+			fileArray = append(fileArray, insert)
+		}
+		isBlock = !isBlock
+	}
+
+	start := 0
+	end := len(fileArray) - 1
+	for end > 0 {
+		// Find the file directtly to the left of end
+		currentFile := Space{end, end}
+		for currentFile.start-1 >= 0 && fileArray[currentFile.start-1] == fileArray[currentFile.end] {
+			currentFile.start--
+		}
+
+		// Find the nearest freespace to right of start
+		freeSpace := Space{start, start}
+		for freeSpace.start < len(fileArray) && fileArray[freeSpace.start] != -1 {
+			freeSpace.start++
+		}
+		freeSpace.end = freeSpace.start
+		for freeSpace.end+1 < len(fileArray) && fileArray[freeSpace.end+1] == -1 {
+			freeSpace.end++
+		}
+
+		// If the freespace overlaps or is to the right of the current file
+		// The file cannot be moved to the left becuase there are no sufficienly
+		// large freespace to the left. In this case we reset start to the
+		// beginning of the array and move to so that it points to the end of the
+		// next file after the one that could not be moved
+		if freeSpace.end >= currentFile.start {
+			start = 0
+			end = currentFile.start - 1
+			for end >= 0 && fileArray[end] == -1 {
+				end--
+			}
+			continue
+		}
+
+		// Calculate the size of the file and the freespace
+		fileSize := currentFile.end - currentFile.start + 1
+		freeSize := freeSpace.end - freeSpace.start + 1
+
+		// If the freespace is larger than the file, move the file to the freespace
+		if freeSize >= fileSize {
+			for i := 0; i < fileSize; i++ {
+				fileArray[freeSpace.start+i] = fileArray[currentFile.start+i]
+				fileArray[currentFile.start+i] = -1
+			}
+			start = 0
+			end = currentFile.start - 1
+			for end >= 0 && fileArray[end] == -1 {
+				end--
+			}
+			// If the freespace is smaller than the file, increment start past the
+			// freespace so we can try to find a larger one further to the right in the array
+		} else {
+			start = freeSpace.end + 1
+			if start >= end {
+				end = currentFile.start - 1
+				for end >= 0 && fileArray[end] == -1 {
+					end--
+				}
+				start = 0
+				continue
+			}
+		}
+
+	}
+
+	// Once we have compacted the file compute the checksum
+	checksum := 0
+	for i := 0; i < len(fileArray); i++ {
+		if fileArray[i] == -1 {
+			continue
+		}
+		checksum += fileArray[i] * i
+	}
+
+	fmt.Printf("Got checksum: %d\n", checksum)
 }
