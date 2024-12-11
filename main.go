@@ -97,6 +97,14 @@ func main() {
 		} else {
 			fmt.Printf("Unknown part: %d\n", part)
 		}
+	case 10:
+		if part == 1 {
+			day10Part1(input)
+		} else if part == 2 {
+			day10Part2(input)
+		} else {
+			fmt.Printf("Unknown part: %d\n", part)
+		}
 	default:
 		fmt.Printf("Unknown day: %d\n", day)
 	}
@@ -1286,4 +1294,134 @@ func day9Part2Improved(inputFile string) {
 	}
 
 	fmt.Printf("Got checksum: %d\n", checksum)
+}
+
+// Day 10
+
+type Pair struct {
+	x int
+	y int
+}
+
+func day10Part1(inputFile string) {
+	input := readInput(inputFile)
+	trimmed := strings.Trim(input, "\n")
+	lines := strings.Split(trimmed, "\n")
+	grid := make([][]int, 0)
+	possibleTrailHeads := make([]Pair, 0)
+	for i, line := range lines {
+		row := make([]int, 0)
+		for j, num := range strings.Split(line, "") {
+			n, err := strconv.Atoi(num)
+			if num == "0" {
+				possibleTrailHeads = append(possibleTrailHeads, Pair{i, j})
+			}
+			check(err)
+			row = append(row, n)
+		}
+		grid = append(grid, row)
+	}
+
+	total := 0
+	for _, trailHead := range possibleTrailHeads {
+		score := getScore(grid, trailHead)
+		total += score
+	}
+
+	fmt.Printf("Got total: %d\n", total)
+
+}
+
+func getScore(grid [][]int, location Pair) int {
+	currentStates := make(map[Pair]bool, 0)
+	currentStates[location] = true
+	trailHeads := make(map[Pair]bool, 0)
+
+	for len(currentStates) > 0 {
+		newStates := make(map[Pair]bool, 0)
+		for state := range currentStates {
+			for _, delta := range []Pair{{0, 1}, {1, 0}, {0, -1}, {-1, 0}} {
+				next := Pair{state.x + delta.x, state.y + delta.y}
+				if next.x < 0 || next.x >= len(grid) || next.y < 0 || next.y >= len(grid[0]) {
+					continue
+				}
+
+				if grid[next.x][next.y]-grid[state.x][state.y] == 1 {
+					if grid[next.x][next.y] == 9 {
+						trailHeads[next] = true
+					} else {
+						newStates[next] = true
+					}
+				}
+			}
+		}
+		currentStates = newStates
+	}
+
+	return len(trailHeads)
+}
+
+func day10Part2(inputFile string) {
+	input := readInput(inputFile)
+	trimmed := strings.Trim(input, "\n")
+	lines := strings.Split(trimmed, "\n")
+	grid := make([][]int, 0)
+	possibleTrailHeads := make([]Pair, 0)
+	for i, line := range lines {
+		row := make([]int, 0)
+		for j, num := range strings.Split(line, "") {
+			n, err := strconv.Atoi(num)
+			if num == "0" {
+				possibleTrailHeads = append(possibleTrailHeads, Pair{i, j})
+			}
+			check(err)
+			row = append(row, n)
+		}
+		grid = append(grid, row)
+	}
+
+	total := 0
+	for _, trailHead := range possibleTrailHeads {
+		score := getTrailScore(grid, trailHead)
+		total += score
+	}
+
+	fmt.Printf("Got total: %d\n", total)
+
+}
+
+func getTrailScore(grid [][]int, location Pair) int {
+	currentTrails := make([][]Pair, 0)
+	currentTrails = append(currentTrails, []Pair{location})
+	allTrails := make([][]Pair, 0)
+
+	for len(currentTrails) > 0 {
+		newTrails := make([][]Pair, 0)
+		for _, trail := range currentTrails {
+			state := trail[len(trail)-1]
+			for _, delta := range []Pair{{0, 1}, {1, 0}, {0, -1}, {-1, 0}} {
+				next := Pair{state.x + delta.x, state.y + delta.y}
+				if next.x < 0 || next.x >= len(grid) || next.y < 0 || next.y >= len(grid[0]) {
+					continue
+				}
+
+				if grid[next.x][next.y]-grid[state.x][state.y] == 1 {
+					if grid[next.x][next.y] == 9 {
+						newTrail := make([]Pair, len(trail))
+						copy(newTrail, trail)
+						newTrail = append(newTrail, next)
+						allTrails = append(allTrails, append(trail, next))
+					} else {
+						newTrail := make([]Pair, len(trail))
+						copy(newTrail, trail)
+						newTrail = append(newTrail, next)
+						newTrails = append(newTrails, newTrail)
+					}
+				}
+			}
+		}
+		currentTrails = newTrails
+	}
+	return len(allTrails)
+
 }
