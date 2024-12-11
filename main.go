@@ -105,6 +105,14 @@ func main() {
 		} else {
 			fmt.Printf("Unknown part: %d\n", part)
 		}
+	case 11:
+		if part == 1 {
+			day11Part1(input)
+		} else if part == 2 {
+			day11Part2(input)
+		} else {
+			fmt.Printf("Unknown part: %d\n", part)
+		}
 	default:
 		fmt.Printf("Unknown day: %d\n", day)
 	}
@@ -1424,4 +1432,77 @@ func getTrailScore(grid [][]int, location Pair) int {
 	}
 	return len(allTrails)
 
+}
+
+func day11Part1(inputFile string) {
+	input := readInput(inputFile)
+	trimmed := strings.Trim(input, "\n")
+	nums := strings.Split(trimmed, " ")
+	total := getStoneCounts(nums, 25)
+	fmt.Printf("Got total: %d\n", total)
+}
+
+func day11Part2(inputFile string) {
+	input := readInput(inputFile)
+	trimmed := strings.Trim(input, "\n")
+	nums := strings.Split(trimmed, " ")
+	total := getStoneCounts(nums, 75)
+	fmt.Printf("Got total: %d\n", total)
+}
+
+func getStoneCounts(nums []string, iterations int) int {
+	counts := make(map[string]int, 0)
+	for _, num := range nums {
+		if _, ok := counts[num]; ok {
+			counts[num]++
+		} else {
+			counts[num] = 1
+		}
+	}
+	for i := 0; i < iterations; i++ {
+		newCounts := make(map[string]int, 0)
+		for num, count := range counts {
+			if num == "0" {
+				if _, ok := newCounts["1"]; ok {
+					newCounts["1"] += count
+				} else {
+					newCounts["1"] = count
+				}
+			} else if len(num)%2 == 0 {
+				num1, num2 := num[:len(num)/2], num[len(num)/2:]
+				number1, err := strconv.Atoi(num1)
+				check(err)
+				number2, err := strconv.Atoi(num2)
+				check(err)
+				num1, num2 = strconv.Itoa(number1), strconv.Itoa(number2)
+				if _, ok := newCounts[num1]; ok {
+					newCounts[num1] += count
+				} else {
+					newCounts[num1] = count
+				}
+				if _, ok := newCounts[num2]; ok {
+					newCounts[num2] += count
+				} else {
+					newCounts[num2] = count
+				}
+			} else {
+				number, err := strconv.Atoi(num)
+				check(err)
+				newNumber := number * 2024
+				newNum := strconv.Itoa(newNumber)
+				if _, ok := newCounts[newNum]; ok {
+					newCounts[newNum] += count
+				} else {
+					newCounts[newNum] = count
+				}
+			}
+		}
+		counts = newCounts
+	}
+	total := 0
+	for _, count := range counts {
+		total += count
+	}
+
+	return total
 }
