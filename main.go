@@ -113,6 +113,14 @@ func main() {
 		} else {
 			fmt.Printf("Unknown part: %d\n", part)
 		}
+	case 12:
+		if part == 1 {
+			day12Part1(input)
+		} else if part == 2 {
+			day12Part2(input)
+		} else {
+			fmt.Printf("Unknown part: %d\n", part)
+		}
 	default:
 		fmt.Printf("Unknown day: %d\n", day)
 	}
@@ -1505,4 +1513,214 @@ func getStoneCounts(nums []string, iterations int) int {
 	}
 
 	return total
+}
+
+// Day 12
+
+func day12Part1(inputFile string) {
+
+	input := readInput(inputFile)
+	trimmed := strings.Trim(input, "\n")
+	lines := strings.Split(trimmed, "\n")
+	grid := make([][]rune, 0)
+	for _, line := range lines {
+		row := make([]rune, 0)
+		for _, letter := range line {
+			row = append(row, letter)
+		}
+		grid = append(grid, row)
+	}
+
+	plots := make([]map[Pair]rune, 0)
+	usedPlots := make(map[Pair]bool, 0)
+	for i := 0; i < len(grid); i++ {
+		for j := 0; j < len(grid[0]); j++ {
+			plot := make(map[Pair]rune, 0)
+			current := Pair{i, j}
+			if _, ok := usedPlots[current]; ok {
+				continue
+			}
+			walkPlot(grid, plot, current, usedPlots)
+			plots = append(plots, plot)
+		}
+	}
+
+	total := 0
+	for _, plot := range plots {
+		fmt.Printf("Got plot: %v\n", plot)
+		area := len(plot)
+		perimeter := calcPerimeter(plot)
+		total += area * perimeter
+	}
+	fmt.Printf("Got total: %d\n", total)
+
+}
+
+func walkPlot(grid [][]rune, plot map[Pair]rune, current Pair, seen map[Pair]bool) {
+	if _, ok := plot[current]; !ok {
+		plot[current] = grid[current.x][current.y]
+	} else {
+		return
+	}
+	for _, delta := range []Pair{{0, 1}, {1, 0}, {0, -1}, {-1, 0}} {
+		next := Pair{current.x + delta.x, current.y + delta.y}
+		if _, ok := seen[next]; ok || isOutOfBounds(next, len(grid), len(grid[0])) {
+			continue
+		}
+		if grid[next.x][next.y] == plot[current] {
+			seen[next] = true
+			walkPlot(grid, plot, next, seen)
+		}
+	}
+}
+
+func isOutOfBounds(point Pair, max_x int, max_y int) bool {
+	return point.x < 0 || point.x >= max_x || point.y < 0 || point.y >= max_y
+}
+
+func calcPerimeter(plot map[Pair]rune) int {
+	perimeter := 0
+	for point := range plot {
+		for _, delta := range []Pair{{0, 1}, {1, 0}, {0, -1}, {-1, 0}} {
+			next := Pair{point.x + delta.x, point.y + delta.y}
+			if _, ok := plot[next]; !ok {
+				perimeter++
+			}
+		}
+	}
+	return perimeter
+}
+
+func day12Part2(inputFile string) {
+	input := readInput(inputFile)
+	trimmed := strings.Trim(input, "\n")
+	lines := strings.Split(trimmed, "\n")
+	grid := make([][]rune, 0)
+	for _, line := range lines {
+		row := make([]rune, 0)
+		for _, letter := range line {
+			row = append(row, letter)
+		}
+		grid = append(grid, row)
+	}
+
+	plots := make([]map[Pair]rune, 0)
+	usedPlots := make(map[Pair]bool, 0)
+	for i := 0; i < len(grid); i++ {
+		for j := 0; j < len(grid[0]); j++ {
+			plot := make(map[Pair]rune, 0)
+			current := Pair{i, j}
+			if _, ok := usedPlots[current]; ok {
+				continue
+			} else {
+				usedPlots[current] = true
+			}
+
+			if _, ok := plot[current]; !ok {
+				plot[current] = grid[current.x][current.y]
+			}
+
+			searcher := Pair{current.x, current.y}
+			walkPlot(grid, plot, searcher, usedPlots)
+			plots = append(plots, plot)
+		}
+	}
+
+	total := 0
+	for _, plot := range plots {
+		area := len(plot)
+		sides := calcSides(plot, len(grid), len(grid[0]))
+		total += area * sides
+	}
+	fmt.Printf("Got total: %d\n", total)
+}
+
+func calcSides(plot map[Pair]rune, max_x int, max_y int) int {
+	pxs := make(map[int][]Pair, 0)
+	pys := make(map[int][]Pair, 0)
+	nxs := make(map[int][]Pair, 0)
+	nys := make(map[int][]Pair, 0)
+	for point := range plot {
+		for _, delta := range []Pair{{0, 1}, {1, 0}, {0, -1}, {-1, 0}} {
+			next := Pair{point.x + delta.x, point.y + delta.y}
+			if _, ok := plot[next]; !ok || isOutOfBounds(next, max_x, max_y) {
+				if delta.y == 1 {
+					if side, ok := pys[next.y]; !ok {
+						side := []Pair{next}
+						pys[next.y] = side
+					} else {
+						pys[next.y] = append(side, next)
+					}
+				} else if delta.y == -1 {
+					if side, ok := nys[next.y]; !ok {
+						side := []Pair{next}
+						nys[next.y] = side
+					} else {
+						nys[next.y] = append(side, next)
+					}
+				} else if delta.x == 1 {
+					if side, ok := pxs[next.x]; !ok {
+						side := []Pair{next}
+						pxs[next.x] = side
+					} else {
+						pxs[next.x] = append(side, next)
+					}
+				} else if delta.x == -1 {
+					if side, ok := nxs[next.x]; !ok {
+						side := []Pair{next}
+						nxs[next.x] = side
+					} else {
+						nxs[next.x] = append(side, next)
+					}
+				}
+
+			}
+		}
+	}
+
+	sides := make([][]Pair, 0)
+	for _, side := range pxs {
+		splitSides := splitSide(side, func(a, b Pair) int {
+			return a.y - b.y
+		})
+		sides = append(sides, splitSides...)
+	}
+	for _, side := range pys {
+		splitSides := splitSide(side, func(a, b Pair) int {
+			return a.x - b.x
+		})
+		sides = append(sides, splitSides...)
+	}
+	for _, side := range nxs {
+		splitSides := splitSide(side, func(a, b Pair) int {
+			return a.y - b.y
+		})
+		sides = append(sides, splitSides...)
+	}
+	for _, side := range nys {
+		splitSides := splitSide(side, func(a, b Pair) int {
+			return a.x - b.x
+		})
+		sides = append(sides, splitSides...)
+	}
+
+	return len(sides)
+}
+
+func splitSide(side []Pair, sortFunc func(a, b Pair) int) [][]Pair {
+	slices.SortFunc(side, sortFunc)
+	splitSides := make([][]Pair, 0)
+	lastSplit := 0
+	for i := 0; i < len(side); i++ {
+		if i == 0 {
+			continue
+		}
+		if absDiffInt(side[i].y, side[i-1].y) > 1 || absDiffInt(side[i].x, side[i-1].x) > 1 {
+			splitSides = append(splitSides, side[:i])
+			lastSplit = i
+		}
+	}
+	splitSides = append(splitSides, side[lastSplit:])
+
+	return splitSides
 }
