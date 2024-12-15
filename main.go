@@ -121,6 +121,30 @@ func main() {
 		} else {
 			fmt.Printf("Unknown part: %d\n", part)
 		}
+	case 13:
+		if part == 1 {
+			day13Part1(input)
+		} else if part == 2 {
+			day13Part2(input)
+		} else {
+			fmt.Printf("Unknown part: %d\n", part)
+		}
+	case 14:
+		if part == 1 {
+			day14Part1(input)
+		} else if part == 2 {
+			day14Part2(input)
+		} else {
+			fmt.Printf("Unknown part: %d\n", part)
+		}
+	case 15:
+		if part == 1 {
+			day15Part1(input)
+		} else if part == 2 {
+			day15Part2(input)
+		} else {
+			fmt.Printf("Unknown part: %d\n", part)
+		}
 	default:
 		fmt.Printf("Unknown day: %d\n", day)
 	}
@@ -1723,4 +1747,611 @@ func splitSide(side []Pair, sortFunc func(a, b Pair) int) [][]Pair {
 	splitSides = append(splitSides, side[lastSplit:])
 
 	return splitSides
+}
+
+// Day 13
+
+type Button struct {
+	x int
+	y int
+}
+
+type Machine struct {
+	A     Button
+	B     Button
+	Prize Pair
+}
+
+func day13Part1(inputFile string) {
+	input := readInput(inputFile)
+	trimmed := strings.Trim(input, "\n")
+
+	total := 0
+	for _, chunk := range strings.Split(trimmed, "\n\n") {
+		machine := parseMachine(chunk, 0)
+		fmt.Printf("Got machine: %v\n", machine)
+		pushes := solveMachine(machine, []string{}, Pair{0, 0}, make(map[Pair]bool))
+		counts := make(map[string]int, 0)
+		for _, push := range pushes {
+			if _, ok := counts[push]; ok {
+				counts[push]++
+			} else {
+				counts[push] = 1
+			}
+		}
+		total += counts["A"]*3 + counts["B"]
+	}
+
+	fmt.Printf("Got total: %d\n", total)
+
+}
+
+func solveMachine(machine Machine, pushes []string, state Pair, seen map[Pair]bool) []string {
+	if _, ok := seen[state]; ok {
+		return []string{}
+	} else {
+		seen[state] = true
+	}
+	if state == machine.Prize {
+		return pushes
+	} else if state.x > machine.Prize.x || state.y > machine.Prize.y {
+		return []string{}
+	} else {
+		pushes = append(pushes, "A")
+		pushed := solveMachine(machine, pushes, Pair{state.x + machine.A.x, state.y + machine.A.y}, seen)
+		if len(pushed) > 0 {
+			return pushed
+		}
+		pushes := pushes[:len(pushes)-1]
+		pushes = append(pushes, "B")
+		pushed = solveMachine(machine, pushes, Pair{state.x + machine.B.x, state.y + machine.B.y}, seen)
+		if len(pushed) > 0 {
+			return pushed
+		}
+	}
+
+	return []string{}
+}
+
+func parseMachine(input string, offset int) Machine {
+	machine := Machine{}
+	xre := regexp.MustCompile(`X.(?P<x>\d+)`)
+	yre := regexp.MustCompile(`Y.(?P<y>\d+)`)
+	for i, line := range strings.Split(input, "\n") {
+		xstr := xre.FindStringSubmatch(line)
+		ystr := yre.FindStringSubmatch(line)
+		if i == 0 {
+			x, err := strconv.Atoi(xstr[1])
+			check(err)
+			y, err := strconv.Atoi(ystr[1])
+			machine.A = Button{x, y}
+		} else if i == 1 {
+			x, err := strconv.Atoi(xstr[1])
+			check(err)
+			y, err := strconv.Atoi(ystr[1])
+			machine.B = Button{x, y}
+		} else {
+			x, err := strconv.Atoi(xstr[1])
+			check(err)
+			y, err := strconv.Atoi(ystr[1])
+			machine.Prize = Pair{x + offset, y + offset}
+		}
+	}
+	return machine
+}
+
+func day13Part2(inputFile string) {
+	input := readInput(inputFile)
+	trimmed := strings.Trim(input, "\n")
+
+	total := 0
+	for _, chunk := range strings.Split(trimmed, "\n\n") {
+		machine := parseMachine(chunk, 10000000000000)
+		fmt.Printf("Got machine: %v\n", machine)
+		as, bs := solveMachine2(machine)
+		fmt.Printf("Got as: %d, bs: %d\n", as, bs)
+		if as > 0 && bs > 0 {
+			total += as*3 + bs
+		}
+	}
+
+	fmt.Printf("Got total: %d\n", total)
+
+}
+
+func solveMachine2(machine Machine) (int, int) {
+	Ay := machine.A.y
+	Ax := machine.A.x
+	By := machine.B.y
+	Bx := machine.B.x
+	PrizeY := machine.Prize.y
+	PrizeX := machine.Prize.x
+
+	j := (PrizeY*Ax - Ay*PrizeX) / (Ax*By - Ay*Bx)
+	i := (PrizeX - Bx*j) / Ax
+
+	if Ax*i+Bx*j == PrizeX && Ay*i+By*j == PrizeY {
+		return i, j
+	}
+
+	return -1, -1
+}
+
+// Day 14
+
+type Robot struct {
+	x  int
+	y  int
+	dx int
+	dy int
+}
+
+func day14Part1(inputFile string) {
+	input := readInput(inputFile)
+	trimmed := strings.Trim(input, "\n")
+	lines := strings.Split(trimmed, "\n")
+	robots := make([]Robot, 0)
+	for _, line := range lines {
+		robots = append(robots, parseRobot(line))
+	}
+	// fmt.Printf("Got robots: %v\n", robots)
+	grid := Pair{101, 103}
+	for i := 0; i < 100; i++ {
+		robots = simulate(robots, grid)
+	}
+
+	printGrid(robots, grid)
+
+	middle_x := grid.x / 2
+	middle_y := grid.y / 2
+	qauds := make(map[int]int, 4)
+	for i := 0; i < 4; i++ {
+		qauds[i] = 0
+	}
+	for _, robot := range robots {
+		if robot.x == middle_x || robot.y == middle_y {
+			continue
+		}
+		if robot.x < middle_x && robot.y < middle_y {
+			qauds[0]++
+		} else if robot.x > middle_x && robot.y < middle_y {
+			qauds[1]++
+		} else if robot.x > middle_x && robot.y > middle_y {
+			qauds[2]++
+		} else {
+			qauds[3]++
+		}
+	}
+	product := 1
+	for _, count := range qauds {
+		product *= count
+	}
+	fmt.Printf("Got product: %d\n", product)
+
+}
+func parseRobot(line string) Robot {
+	first_second := strings.Split(line, " ")
+	x_y := strings.Split(first_second[0][2:], ",")
+	x, err := strconv.Atoi(x_y[0])
+	check(err)
+	y, err := strconv.Atoi(x_y[1])
+	check(err)
+	dx_dy := strings.Split(first_second[1][2:], ",")
+	dx, err := strconv.Atoi(dx_dy[0])
+	check(err)
+	dy, err := strconv.Atoi(dx_dy[1])
+	check(err)
+	return Robot{x, y, dx, dy}
+}
+
+func simulate(robots []Robot, grid Pair) []Robot {
+	newRobots := make([]Robot, 0)
+	for _, robot := range robots {
+		if robot.x+robot.dx >= grid.x {
+			robot.x = robot.dx - (grid.x - robot.x)
+		} else if robot.x+robot.dx < 0 {
+			robot.x = grid.x + (robot.dx + robot.x)
+		} else {
+			robot.x += robot.dx
+		}
+
+		if robot.y+robot.dy >= grid.y {
+			robot.y = robot.dy - (grid.y - robot.y)
+		} else if robot.y+robot.dy < 0 {
+			robot.y = grid.y + (robot.dy + robot.y)
+		} else {
+			robot.y += robot.dy
+		}
+		newRobots = append(newRobots, robot)
+	}
+
+	return newRobots
+}
+
+func day14Part2(inputFile string) {
+	input := readInput(inputFile)
+	trimmed := strings.Trim(input, "\n")
+	lines := strings.Split(trimmed, "\n")
+	robots := make([]Robot, 0)
+	for _, line := range lines {
+		robots = append(robots, parseRobot(line))
+	}
+	// fmt.Printf("Got robots: %v\n", robots)
+	postitions := make(map[int][]Robot, 0)
+	grid := Pair{101, 103}
+	for i := 0; i < 10403; i++ {
+		robots = simulate(robots, grid)
+		postitions[i] = robots
+	}
+
+	distances := make(map[float64]int, 0)
+	count := 0
+	for i, robots := range postitions {
+		fmt.Printf("Calcualting iteration: %d, count: %d\n", i, count)
+		count++
+		robotMap := make(map[Pair]bool, 0)
+		for _, robot := range robots {
+			robotMap[Pair{robot.x, robot.y}] = true
+		}
+		middle_x := grid.x / 2
+		middle_y := grid.y / 2
+		ssd := 0.0
+		for _, robot := range robots {
+			if robot.x == middle_x || robot.y == middle_y {
+				continue
+			}
+			ssd += math.Pow(float64(robot.x-middle_x), 2) + math.Pow(float64(robot.y-middle_y), 2)
+		}
+		distances[ssd] = i
+	}
+
+	minSSD := math.Pow(2, 31) - 1
+	for distance := range distances {
+		if distance < minSSD {
+			minSSD = distance
+		}
+
+	}
+
+	iteration := distances[minSSD]
+	fmt.Printf("Got iteration: %d\n", iteration)
+	printGrid(postitions[iteration], grid)
+}
+
+func pointDistance(p1, p2 Robot) float64 {
+	return math.Sqrt(math.Pow(float64(p1.x-p2.x), 2) + math.Pow(float64(p1.y-p2.y), 2))
+}
+
+func printGrid(robots []Robot, grid Pair) {
+	for j := 20; j < grid.y-50; j++ {
+		for k := 41; k < grid.x-29; k++ {
+			count := 0
+			for _, robot := range robots {
+				if robot.x == k && robot.y == j {
+					count++
+				}
+			}
+			if count == 0 {
+				fmt.Printf(".")
+			} else {
+				fmt.Printf("X")
+			}
+		}
+		fmt.Printf("\n")
+	}
+}
+
+// Day 15
+func day15Part1(inputFile string) {
+	input := readInput(inputFile)
+	trimmed := strings.Trim(input, "\n")
+
+	parts := strings.Split(trimmed, "\n\n")
+	grid := make([][]string, 0)
+	var robot Pair
+	for i, line := range strings.Split(parts[0], "\n") {
+		row := make([]string, 0)
+		for j, letter := range strings.Split(line, "") {
+			if letter == "@" {
+				robot = Pair{i, j}
+				row = append(row, "@")
+			} else {
+				row = append(row, letter)
+			}
+		}
+		grid = append(grid, row)
+	}
+
+	moves := parseMoves(parts[1])
+
+	for _, move := range moves {
+		next := Pair{robot.x + move.x, robot.y + move.y}
+		// If the next position is a wall, we skip
+		if grid[next.x][next.y] == "#" {
+			continue
+		} else if grid[next.x][next.y] == "O" {
+			// if the next position is a box, we check for aligned boxes
+			// until we hit a wall or open space. We then move all the boxes
+			// found on the line by one step in the direction of the move
+			toMove := make([]Pair, 0)
+			toMove = append(toMove, next)
+			nextNext := Pair{next.x + move.x, next.y + move.y}
+			for grid[nextNext.x][nextNext.y] == "O" {
+				toMove = append(toMove, nextNext)
+				nextNext = Pair{nextNext.x + move.x, nextNext.y + move.y}
+			}
+			// if nextNext is a wall after exiting the loop, we cant move
+			// anything on the line so we skip
+			if grid[nextNext.x][nextNext.y] == "#" {
+				continue
+			} else {
+				// If nextNext is open space, we move all the boxes on the line
+				// by one step in the direction of the move
+				for i := len(toMove) - 1; i >= 0; i-- {
+					box := toMove[i]
+					grid[box.x][box.y] = "."
+					grid[box.x+move.x][box.y+move.y] = "O"
+				}
+				// We then move the robot to the next position
+				grid[next.x][next.y] = "@"
+				grid[robot.x][robot.y] = "."
+				robot = next
+			}
+		} else {
+			// if the next position is open space, we move the
+			// robot to the next position
+			grid[next.x][next.y] = "@"
+			grid[robot.x][robot.y] = "."
+			robot = next
+		}
+	}
+	printGrid15(grid, robot)
+	sum := 0
+	for i, row := range grid {
+		for j, letter := range row {
+			if letter == "O" {
+				sum += i*100 + j
+			}
+		}
+	}
+
+	fmt.Printf("Got sum: %d\n", sum)
+}
+
+func parseMoves(input string) []Pair {
+	moves := make([]Pair, 0)
+	for _, r := range strings.Split(input, "") {
+		if r == "^" {
+			moves = append(moves, Pair{-1, 0})
+		} else if r == "v" {
+			moves = append(moves, Pair{1, 0})
+		} else if r == "<" {
+			moves = append(moves, Pair{0, -1})
+		} else if r == ">" {
+			moves = append(moves, Pair{0, 1})
+		}
+	}
+
+	return moves
+}
+
+func printGrid15(grid [][]string, robot Pair) {
+	for _, row := range grid {
+		for _, letter := range row {
+			fmt.Printf("%s", letter)
+		}
+		fmt.Printf("\n")
+	}
+	fmt.Printf("\n")
+}
+
+func day15Part2(inputFile string) {
+	input := readInput(inputFile)
+	trimmed := strings.Trim(input, "\n")
+
+	parts := strings.Split(trimmed, "\n\n")
+	grid := make([][]string, 0)
+	var robot Pair
+	for i, line := range strings.Split(parts[0], "\n") {
+		row := make([]string, 0)
+		for j, letter := range strings.Split(line, "") {
+			if letter == "@" {
+				robot = Pair{i, j * 2}
+				row = append(row, "@")
+				row = append(row, ".")
+			} else if letter == "#" {
+				row = append(row, "#")
+				row = append(row, "#")
+			} else if letter == "." {
+				row = append(row, ".")
+				row = append(row, ".")
+			} else if letter == "O" {
+				row = append(row, "[")
+				row = append(row, "]")
+			}
+		}
+		grid = append(grid, row)
+	}
+
+	moves := parseMoves(parts[1])
+
+	for _, move := range moves {
+		next := Pair{robot.x + move.x, robot.y + move.y}
+		// If the next position is a wall, we skip
+		if grid[next.x][next.y] == "#" {
+			continue
+		} else if grid[next.x][next.y] == "[" || grid[next.x][next.y] == "]" {
+			// if the next position is a part of a box we check the direction
+			// we are pushing in and take the appropriate action
+			if move.x == 0 {
+				// If we are pushing in the x direction, we can follow
+				// a procedure similar to the one in part 1 where we keep
+				// track of boxes on the line until we hit a wall or open space
+				// and then move all the boxes on the line by one step in the
+				toMove := make([]Pair, 0)
+				toMove = append(toMove, next)
+				i := 0
+				for grid[next.x][next.y+move.y*i] != "#" && grid[next.x][next.y+move.y*i] != "." {
+					i++
+				}
+				if grid[next.x][next.y+move.y*i] == "#" {
+					continue
+				} else {
+					for j := next.y + move.y*i; j != next.y; j -= move.y {
+						grid[next.x][j], grid[next.x][j-move.y] = grid[next.x][j-move.y], grid[next.x][j]
+					}
+					grid[next.x][next.y] = "@"
+					grid[robot.x][robot.y] = "."
+					robot = next
+				}
+			} else {
+				// If we are moving in the y direction we need to determine all of the
+				// affected coordinates from push on the box in the move direction.
+				// The coordinates branch out from the source box depending on how much overlap
+				// the source box has with the box above it. For example. If we we are moving ^
+				//  ......    ..[]..
+				//  ..[].. -> ..[]..
+				//  ..[]..    ...@..
+				//  ...@.     ......
+				// Boxes in line like the one above dont branch outt the only move up.
+				//
+				// Boxes not in line with one and other branch out in the direction of the other
+				// half of the box being pushed. For example:
+				//  ......    ...[].
+				//  ...[].    ..[]..
+				//  ..[].. -> ..[]..
+				//  ..[]..	  ...@..
+				//  ...@..	  ......
+				// This can get complicated when their are many boxes branching out
+				affectedCords := make([]Pair, 0)
+				// starting affected cords is the current position of the robot
+				affectedCords = append(affectedCords, robot)
+				// next affected cords starts as the current position of the robot
+				nextAffectedCords := affectedCords
+				for {
+					// calculate the next cordinate affect by the push passing the last
+					// iteration of affected cords and the move direction
+					nextAffectedCords = getNextAffectCords(nextAffectedCords, move, grid)
+					// Sort the cords by y value so we can swap them one row at a time
+					// They will be unordered because a map is used in getNextAffectCords
+					// to prevent duplicates
+					sort.Slice(nextAffectedCords, func(i, j int) bool {
+						return nextAffectedCords[i].x < nextAffectedCords[j].x
+					})
+
+					// Set flags to intial values
+					allClear := true
+					wallHit := false
+					for _, cord := range nextAffectedCords {
+						// If one of the next affected cords is a wall, we set wallHit to true
+						if grid[cord.x][cord.y] == "#" && grid[cord.x-move.x][cord.y] != "." {
+							wallHit = true
+							// if one of the next affected cords is a box, we set allClear to false
+							// because we will still need to calculate the effect this box has on the
+							// next row of boxes
+						} else if grid[cord.x][cord.y] == "]" || grid[cord.x][cord.y] == "[" {
+							allClear = false
+						}
+					}
+
+					// If we hit a wall, we break out of the loop and not move
+					if wallHit {
+						break
+					}
+					// If the set of next affected cords is all clear,
+					// We DONT add the current set to affectedCords and
+					// swap all of the cords in affectedCords with their
+					// corresponding cords move 1 step in the move direction
+					// Finally we swap the robot with the next position
+					if allClear {
+						for k := len(affectedCords) - 1; k >= 0; k-- {
+							cord := affectedCords[k]
+							if grid[cord.x][cord.y] == "]" || grid[cord.x][cord.y] == "[" {
+								grid[cord.x][cord.y], grid[cord.x+move.x][cord.y] = grid[cord.x+move.x][cord.y], grid[cord.x][cord.y]
+							}
+						}
+						grid[next.x][next.y] = "@"
+						grid[robot.x][robot.y] = "."
+						robot = next
+						break
+					} else {
+						// If we didnt hit a wall and the next affected cords are not all clear
+						// We need to continue to the next row of boxes. Add the current set of
+						// nextAffectedCords to affectedCords and continue the loop
+						affectedCords = append(affectedCords, nextAffectedCords...)
+						continue
+					}
+				}
+			}
+		} else {
+			// If the next position is open space, we move the robot to it
+			grid[next.x][next.y] = "@"
+			grid[robot.x][robot.y] = "."
+			robot = next
+		}
+	}
+	printGrid15(grid, robot)
+	sum := 0
+	for i, row := range grid {
+		for j, letter := range row {
+			if letter == "[" {
+				sum += i*100 + j
+			}
+		}
+	}
+
+	fmt.Printf("Got sum: %d\n", sum)
+}
+
+func getNextAffectCords(cords []Pair, Xdirection Pair, grid [][]string) []Pair {
+	// Keep track of affected coords in a map to prevent duplicates
+	nextAffectedCords := make(map[Pair]bool, 0)
+	for _, cord := range cords {
+		// get the letter at the current cord
+		kind := grid[cord.x][cord.y]
+		if kind == "@" {
+			// if the current cord is the robot, check which side if the box
+			// the robot is adjacent to and add the adjacent cord and its
+			// other side to the next affected cords
+			boxSide := grid[cord.x+Xdirection.x][cord.y]
+			checkedAddToMap(nextAffectedCords, Pair{cord.x + Xdirection.x, cord.y})
+			if boxSide == "[" {
+				checkedAddToMap(nextAffectedCords, Pair{cord.x + Xdirection.x, cord.y + 1})
+			} else if boxSide == "]" {
+				checkedAddToMap(nextAffectedCords, Pair{cord.x + Xdirection.x, cord.y - 1})
+			}
+		}
+		// If the current cord is the left side of a box, add  the coord one step
+		// in the move direction to the next affected cords. If the added cord is
+		// the right side of a box, add the left side as well.
+		if kind == "[" {
+			checkedAddToMap(nextAffectedCords, Pair{cord.x + Xdirection.x, cord.y})
+			if grid[cord.x+Xdirection.x][cord.y] == "]" {
+				checkedAddToMap(nextAffectedCords, Pair{cord.x + Xdirection.x, cord.y - 1})
+			}
+		} else if kind == "]" {
+			// If the current cord is the right side of a box, add  the coord one step
+			// in the move direction to the next affected cords. If the added cord is
+			// the left side of a box, add the right side as well.
+			checkedAddToMap(nextAffectedCords, Pair{cord.x + Xdirection.x, cord.y})
+			if grid[cord.x+Xdirection.x][cord.y] == "[" {
+				checkedAddToMap(nextAffectedCords, Pair{cord.x + Xdirection.x, cord.y + 1})
+			}
+		}
+	}
+	return getKeys(nextAffectedCords)
+}
+
+func checkedAddToMap(m map[Pair]bool, p Pair) {
+	if _, ok := m[p]; !ok {
+		m[p] = true
+	}
+}
+
+func getKeys(m map[Pair]bool) []Pair {
+	keys := make([]Pair, 0)
+	for key := range m {
+		keys = append(keys, key)
+	}
+	return keys
 }
