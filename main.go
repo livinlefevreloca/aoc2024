@@ -154,6 +154,14 @@ func main() {
 		} else {
 			fmt.Printf("Unknown part: %d\n", part)
 		}
+	case 17:
+		if part == 1 {
+			day17Part1(input)
+		} else if part == 2 {
+			day17Part2(input)
+		} else {
+			fmt.Printf("Unknown part: %d\n", part)
+		}
 	default:
 		fmt.Printf("Unknown day: %d\n", day)
 	}
@@ -2832,4 +2840,149 @@ func day16Part2Good(inputFile string) {
 
 	printGrid16Tiles(grid, start, end, allNodes)
 	fmt.Printf("Got all nodes: %d\n", len(allNodes))
+}
+
+// Day 17
+func day17Part1(inputFile string) {
+	input := readInput(inputFile)
+	trimmmed := strings.Trim(input, "\n")
+	sections := strings.Split(trimmmed, "\n\n")
+
+	registers := make(map[string]int, 0)
+	instructions := make([]int, 0)
+
+	for _, line := range strings.Split(sections[0], "\n") {
+		parts := strings.Split(line, " ")
+		reg_val := strings.Split(parts[1], ":")
+		registers[reg_val[0]], _ = strconv.Atoi(parts[2])
+	}
+
+	nums := strings.Split(sections[1], ":")
+	trimmed_nums := strings.Trim(nums[1], " ")
+	for _, num := range strings.Split(trimmed_nums, ",") {
+		val, _ := strconv.Atoi(num)
+		instructions = append(instructions, val)
+	}
+
+	answer := ""
+	for _, d := range Compute(registers, instructions) {
+		answer += fmt.Sprintf("%d,", d)
+	}
+	fmt.Printf("%s\n", answer)
+
+}
+
+func Compute(registers map[string]int, instructions []int) []int {
+	pc := 0
+
+	data := make([]int, 0)
+	for pc < len(instructions) {
+		opcode := instructions[pc]
+		static_operand := instructions[pc+1]
+		// fmt.Printf("Registers: %v, opcode: %d\n", registers, opcode)
+
+		var operand func() int
+		if static_operand <= 3 {
+			operand = func() int { return static_operand }
+		} else if static_operand == 4 {
+			operand = func() int { return registers["A"] }
+		} else if static_operand == 5 {
+			operand = func() int { return registers["B"] }
+		} else if static_operand == 6 {
+			operand = func() int { return registers["C"] }
+		} else if static_operand == 7 {
+			pc += 2
+		}
+
+		if opcode == 0 {
+			registers["A"] /= int(math.Pow(2, float64(operand())))
+			pc += 2
+		} else if opcode == 1 {
+			registers["B"] ^= static_operand
+			pc += 2
+		} else if opcode == 2 {
+			registers["B"] = operand() % 8
+			pc += 2
+		} else if opcode == 3 {
+			if registers["A"] != 0 {
+				pc = static_operand
+			} else {
+				pc += 2
+			}
+		} else if opcode == 4 {
+			registers["B"] ^= registers["C"]
+			pc += 2
+		} else if opcode == 5 {
+			data = append(data, operand()%8)
+			pc += 2
+		} else if opcode == 6 {
+			registers["B"] = registers["A"] / int(math.Pow(2, float64(operand())))
+			pc += 2
+		} else if opcode == 7 {
+			registers["C"] = registers["A"] / int(math.Pow(2, float64(operand())))
+			pc += 2
+		}
+	}
+
+	return data
+}
+
+func day17Part2(inputFile string) {
+	input := readInput(inputFile)
+	trimmmed := strings.Trim(input, "\n")
+	sections := strings.Split(trimmmed, "\n\n")
+
+	registers := make(map[string]int, 0)
+	instructions := make([]int, 0)
+
+	for _, line := range strings.Split(sections[0], "\n") {
+		parts := strings.Split(line, " ")
+		reg_val := strings.Split(parts[1], ":")
+		registers[reg_val[0]], _ = strconv.Atoi(parts[2])
+	}
+
+	nums := strings.Split(sections[1], ":")
+	trimmed_nums := strings.Trim(nums[1], " ")
+	for _, num := range strings.Split(trimmed_nums, ",") {
+		val, _ := strconv.Atoi(num)
+		instructions = append(instructions, val)
+	}
+
+	answers := make([]int, 0)
+	canidates := make([]int, 0)
+	canidates = append(canidates, 0)
+outer:
+	for {
+		newCanidates := make([]int, 0)
+		for _, canidate := range canidates {
+			x := canidate << 3
+			for j := 0; j < 8; j++ {
+				val := x | j
+				registers["A"] = val
+				data := Compute(registers, instructions)
+				if len(data) > len(instructions) {
+					break outer
+				}
+				if slices.Equal(instructions[len(instructions)-len(data):], data) {
+					if slices.Equal(instructions, data) {
+						answers = append(answers, val)
+					}
+					newCanidates = append(newCanidates, val)
+				}
+			}
+		}
+		if len(newCanidates) == 0 {
+			break
+		}
+		canidates = newCanidates
+	}
+
+	minVal := answers[0]
+	for _, answer := range answers {
+		if answer < minVal {
+			minVal = answer
+		}
+	}
+	fmt.Printf("Got A Register: %d\n", minVal)
+
 }
