@@ -10,6 +10,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 )
 
 func main() {
@@ -142,6 +143,14 @@ func main() {
 			day15Part1(input)
 		} else if part == 2 {
 			day15Part2(input)
+		} else {
+			fmt.Printf("Unknown part: %d\n", part)
+		}
+	case 16:
+		if part == 1 {
+			day16Part1(input)
+		} else if part == 2 {
+			day16Part2Good(input)
 		} else {
 			fmt.Printf("Unknown part: %d\n", part)
 		}
@@ -2354,4 +2363,473 @@ func getKeys(m map[Pair]bool) []Pair {
 		keys = append(keys, key)
 	}
 	return keys
+}
+
+// Day 16
+
+type State struct {
+	score     int
+	current   Pair
+	direction Pair
+	seen      map[Pair]bool
+}
+
+func day16Part1(inputFile string) int {
+	input := readInput(inputFile)
+	trimmed := strings.Trim(input, "\n")
+	lines := strings.Split(trimmed, "\n")
+	start := Pair{0, 0}
+	end := Pair{0, 0}
+	grid := make([][]string, 0)
+	for i, line := range lines {
+		row := make([]string, 0)
+		for j, letter := range strings.Split(line, "") {
+			if letter == "S" {
+				start = Pair{i, j}
+				row = append(row, ".")
+			} else if letter == "E" {
+				end = Pair{i, j}
+				row = append(row, ".")
+			} else {
+				row = append(row, letter)
+			}
+		}
+		grid = append(grid, row)
+	}
+
+	minCost := math.MaxInt32
+	states := make([]State, 0)
+	seen1 := make(map[Pair]bool, 0)
+	states = append(states, State{0, start, Pair{0, 1}, seen1})
+	seen2 := make(map[Pair]bool, 0)
+	states = append(states, State{1000, start, Pair{-1, 0}, seen2})
+	costs := make(map[Pair]int, 0)
+	for len(states) > 0 {
+		newStates := make([]State, 0)
+		toDisplay := make([]Pair, 0)
+		for _, state := range states {
+			toDisplay = append(toDisplay, state.current)
+		}
+		for _, state := range states {
+			printGrid16(grid, state.current, end)
+			for _, dir := range []Pair{{0, 1}, {1, 0}, {0, -1}, {-1, 0}} {
+				next := Pair{state.current.x + dir.x, state.current.y + dir.y}
+				var newCost int
+				if dir == state.direction {
+					newCost = state.score + 1
+				} else {
+					newCost = state.score + 1000 + 1
+				}
+				if _, ok := state.seen[next]; ok || isOutOfBounds(next, len(grid), len(grid[0])) {
+					continue
+				}
+				if grid[next.x][next.y] == "#" {
+					continue
+				}
+				if next == end {
+					if newCost < minCost {
+						minCost = newCost
+					}
+				}
+
+				if _, ok := costs[next]; ok {
+					if newCost >= costs[next] {
+						continue
+					} else {
+						costs[next] = newCost
+					}
+				} else {
+					costs[next] = newCost
+				}
+				newSeen := make(map[Pair]bool, 0)
+				for k, v := range state.seen {
+					newSeen[k] = v
+				}
+				newSeen[next] = true
+				newStates = append(newStates, State{newCost, next, dir, newSeen})
+			}
+		}
+		states = newStates
+	}
+
+	fmt.Printf("Got min cost: %d\n", minCost)
+
+	return minCost
+}
+
+func printGrid16(grid [][]string, start Pair, end Pair) {
+	for i, row := range grid {
+		for j, letter := range row {
+			if i == start.x && j == start.y {
+				fmt.Printf("S")
+			} else if i == end.x && j == end.y {
+				fmt.Printf("E")
+			} else {
+				fmt.Printf("%s", letter)
+			}
+		}
+		fmt.Printf("\n")
+	}
+}
+func day16Part2Bad(inputFile string) {
+	input := readInput(inputFile)
+	trimmed := strings.Trim(input, "\n")
+	lines := strings.Split(trimmed, "\n")
+	start := Pair{0, 0}
+	end := Pair{0, 0}
+	grid := make([][]string, 0)
+	for i, line := range lines {
+		row := make([]string, 0)
+		for j, letter := range strings.Split(line, "") {
+			if letter == "S" {
+				start = Pair{i, j}
+				row = append(row, ".")
+			} else if letter == "E" {
+				end = Pair{i, j}
+				row = append(row, ".")
+			} else {
+				row = append(row, letter)
+			}
+		}
+		grid = append(grid, row)
+	}
+
+	minCost := day16Part1(inputFile)
+	costs := make(map[Pair]int, 0)
+	costs[end] = 0
+	targets := make([]Pair, 0)
+	for i := range grid {
+		for j := range grid[i] {
+			targets = append(targets, Pair{i, j})
+		}
+	}
+
+	// Do stupid parallelization of procedure in part1
+	// for every point in the grid so that we have its
+	// shortest distance to the end point
+	done := make(chan bool, 0)
+	runningCount := 0
+	costMutex := sync.Mutex{}
+	runWaitGroup := sync.WaitGroup{}
+	for len(targets) > 0 {
+		if runningCount == 64 {
+			<-done
+			runningCount--
+		}
+		target := targets[0]
+		targets = targets[1:]
+		go getShortPathToPoint(grid, start, end, minCost, costs, target, &costMutex, &runWaitGroup, done)
+		runningCount++
+	}
+	runWaitGroup.Wait()
+
+	// Now that we have the shortest distance to the end point
+	// for each point we can find all the shortest path from start to end
+	minPaths := make([]State, 0)
+	states := make([]State, 0)
+	seen1 := make(map[Pair]bool, 0)
+	seen1[start] = true
+	states = append(states, State{0, start, Pair{0, 1}, seen1})
+	seen2 := make(map[Pair]bool, 0)
+	seen2[start] = true
+	states = append(states, State{0, start, Pair{-1, 0}, seen2})
+	for len(states) > 0 {
+		newStates := make([]State, 0)
+		for _, state := range states {
+			for _, dir := range []Pair{{0, 1}, {1, 0}, {0, -1}, {-1, 0}} {
+				next := Pair{state.current.x + dir.x, state.current.y + dir.y}
+				var newCost int
+				if dir == state.direction {
+					newCost = state.score + 1
+				} else {
+					newCost = state.score + 1000 + 1
+				}
+				if _, ok := state.seen[next]; ok || isOutOfBounds(next, len(grid), len(grid[0])) {
+					continue
+				}
+				if grid[next.x][next.y] == "#" {
+					continue
+				}
+
+				var cost int
+				if _, ok := costs[next]; ok {
+					cost = costs[next]
+				} else {
+					continue
+				}
+				if state.score+cost > minCost {
+					continue
+				}
+
+				if next != end {
+					newSeen := make(map[Pair]bool, 0)
+					for k, v := range state.seen {
+						newSeen[k] = v
+					}
+					newSeen[next] = true
+					newStates = append(newStates, State{newCost, next, dir, newSeen})
+				} else {
+					if newCost == minCost {
+						newSeen := make(map[Pair]bool, 0)
+						for k, v := range state.seen {
+							newSeen[k] = v
+						}
+						newSeen[next] = true
+						minPaths = append(minPaths, State{newCost, next, dir, newSeen})
+					}
+				}
+			}
+		}
+		states = newStates
+	}
+
+	fmt.Printf("Got min paths: %d\n", len(minPaths))
+
+	allNodes := make(map[Pair]bool, 0)
+	for _, path := range minPaths {
+		for node := range path.seen {
+			allNodes[node] = true
+		}
+	}
+
+	printGrid16Tiles(grid, start, end, allNodes)
+
+	fmt.Printf("Got all nodes: %d\n", len(allNodes))
+
+}
+
+func printGrid16Tiles(grid [][]string, start Pair, end Pair, tiles map[Pair]bool) {
+	for i, row := range grid {
+		for j, letter := range row {
+			if _, ok := tiles[Pair{i, j}]; ok {
+				fmt.Printf("O")
+			} else if i == start.x && j == start.y {
+				fmt.Printf("S")
+			} else if i == end.x && j == end.y {
+				fmt.Printf("E")
+			} else {
+				fmt.Printf("%s", letter)
+			}
+		}
+		fmt.Printf("\n")
+	}
+}
+
+func getShortPathToPoint(
+	grid [][]string,
+	start Pair,
+	end Pair,
+	minCost int,
+	costs map[Pair]int,
+	target Pair,
+	costMutex *sync.Mutex,
+	runWaitGroup *sync.WaitGroup,
+	done chan bool,
+) {
+	runWaitGroup.Add(1)
+	fmt.Printf("target: %v\n", target)
+	states := make([]State, 0)
+	seen1 := make(map[Pair]bool, 0)
+	states = append(states, State{0, end, Pair{0, -1}, seen1})
+	seen2 := make(map[Pair]bool, 0)
+	states = append(states, State{0, end, Pair{1, 0}, seen2})
+	for len(states) > 0 {
+		newStates := make([]State, 0)
+		for _, state := range states {
+			for _, dir := range []Pair{{0, 1}, {1, 0}, {0, -1}, {-1, 0}} {
+				next := Pair{state.current.x + dir.x, state.current.y + dir.y}
+				var newCost int
+				if dir == state.direction {
+					newCost = state.score + 1
+				} else {
+					newCost = state.score + 1000 + 1
+				}
+				if newCost > minCost {
+				}
+
+				costMutex.Lock()
+				if _, ok := state.seen[next]; ok || isOutOfBounds(next, len(grid), len(grid[0])) {
+					costMutex.Unlock()
+					continue
+				}
+				if grid[next.x][next.y] == "#" {
+					costMutex.Unlock()
+					continue
+				}
+
+				if _, ok := costs[next]; ok {
+					if newCost > costs[next] {
+						costMutex.Unlock()
+						continue
+					} else {
+						costs[next] = newCost
+					}
+				} else {
+					costs[next] = newCost
+				}
+				costMutex.Unlock()
+
+				if next != target {
+					newSeen := make(map[Pair]bool, 0)
+					for k, v := range state.seen {
+						newSeen[k] = v
+					}
+					newSeen[next] = true
+					newState := State{newCost, next, dir, newSeen}
+					newStates = append(newStates, newState)
+				}
+			}
+		}
+		states = newStates
+	}
+	runWaitGroup.Done()
+	done <- true
+}
+
+type Iteration struct {
+	current   Pair
+	direction Pair
+}
+
+func day16Part2Good(inputFile string) {
+	input := readInput(inputFile)
+	trimmed := strings.Trim(input, "\n")
+	lines := strings.Split(trimmed, "\n")
+	start := Pair{0, 0}
+	end := Pair{0, 0}
+	grid := make([][]string, 0)
+	for i, line := range lines {
+		row := make([]string, 0)
+		for j, letter := range strings.Split(line, "") {
+			if letter == "S" {
+				start = Pair{i, j}
+				row = append(row, ".")
+			} else if letter == "E" {
+				end = Pair{i, j}
+				row = append(row, ".")
+			} else {
+				row = append(row, letter)
+			}
+		}
+		grid = append(grid, row)
+	}
+
+	queue := make([]Iteration, 0)
+	distances := make(map[Pair]int, 0)
+	for i := range grid {
+		for j := range grid[i] {
+			distances[Pair{i, j}] = math.MaxInt32
+		}
+	}
+	distances[end] = 0
+	startIter := Iteration{end, Pair{1, 0}}
+	queue = append(queue, startIter)
+	for len(queue) > 0 {
+		iter := queue[len(queue)-1]
+		queue = queue[:len(queue)-1]
+
+		for _, dir := range []Pair{{0, 1}, {1, 0}, {0, -1}, {-1, 0}} {
+			if dir.x == -iter.direction.x && dir.y == -iter.direction.y {
+				continue
+			}
+
+			next := Pair{iter.current.x + dir.x, iter.current.y + dir.y}
+			if isOutOfBounds(next, len(grid), len(grid[0])) {
+				continue
+			}
+			if grid[next.x][next.y] == "#" {
+				continue
+			}
+
+			cost := 1
+			if dir != iter.direction {
+				cost = 1000 + 1
+			}
+
+			if distances[next] > distances[iter.current]+cost {
+				distances[next] = distances[iter.current] + cost
+				queue = append(queue, Iteration{next, dir})
+			}
+		}
+
+		sort.Slice(queue, func(i, j int) bool {
+			return distances[queue[i].current] > distances[queue[j].current]
+		})
+	}
+
+	minCost := distances[start]
+	fmt.Printf("Got min cost: %d\n", minCost)
+
+	// Now that we have the shortest distance to the end point
+	// for each point we can find all the shortest path from start to end
+
+	minPaths := make([]State, 0)
+	states := make([]State, 0)
+
+	seen1 := make(map[Pair]bool, 0)
+	seen1[start] = true
+	states = append(states, State{0, start, Pair{0, 1}, seen1})
+
+	seen2 := make(map[Pair]bool, 0)
+	seen2[start] = true
+	states = append(states, State{0, start, Pair{-1, 0}, seen2})
+	for len(states) > 0 {
+		newStates := make([]State, 0)
+		for _, state := range states {
+			for _, dir := range []Pair{{0, 1}, {1, 0}, {0, -1}, {-1, 0}} {
+				if dir.x == -state.direction.x && dir.y == -state.direction.y {
+					continue
+				}
+				next := Pair{state.current.x + dir.x, state.current.y + dir.y}
+
+				var newCost int
+				if dir == state.direction {
+					newCost = state.score + 1
+				} else {
+					newCost = state.score + 1000 + 1
+				}
+
+				if _, ok := state.seen[next]; ok || isOutOfBounds(next, len(grid), len(grid[0])) {
+					continue
+				}
+
+				if grid[next.x][next.y] == "#" {
+					continue
+				}
+
+				if state.score+distances[next] > minCost {
+					continue
+				}
+
+				if next != end {
+					newSeen := make(map[Pair]bool, 0)
+					for k, v := range state.seen {
+						newSeen[k] = v
+					}
+					newSeen[next] = true
+					newStates = append(newStates, State{newCost, next, dir, newSeen})
+				} else {
+					if newCost <= minCost {
+						newSeen := make(map[Pair]bool, 0)
+						for k, v := range state.seen {
+							newSeen[k] = v
+						}
+						newSeen[next] = true
+						minPaths = append(minPaths, State{newCost, next, dir, newSeen})
+					}
+				}
+			}
+		}
+		states = newStates
+	}
+
+	allNodes := make(map[Pair]bool, 0)
+	for _, path := range minPaths {
+		for node := range path.seen {
+			allNodes[node] = true
+		}
+	}
+
+	printGrid16Tiles(grid, start, end, allNodes)
+	fmt.Printf("Got all nodes: %d\n", len(allNodes))
 }
