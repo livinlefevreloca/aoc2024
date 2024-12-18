@@ -162,6 +162,14 @@ func main() {
 		} else {
 			fmt.Printf("Unknown part: %d\n", part)
 		}
+	case 18:
+		if part == 1 {
+			day18Part1(input)
+		} else if part == 2 {
+			day18Part2(input)
+		} else {
+			fmt.Printf("Unknown part: %d\n", part)
+		}
 	default:
 		fmt.Printf("Unknown day: %d\n", day)
 	}
@@ -2985,4 +2993,173 @@ outer:
 	}
 	fmt.Printf("Got A Register: %d\n", minVal)
 
+}
+
+// Day 18
+
+func day18Part1(inputFile string) {
+	input := readInput(inputFile)
+	trimmmed := strings.Trim(input, "\n")
+	coords := make([]Pair, 0)
+	for _, line := range strings.Split(trimmmed, "\n") {
+		coord := strings.Split(line, ",")
+		x, _ := strconv.Atoi(coord[0])
+		y, _ := strconv.Atoi(coord[1])
+		cord := Pair{x, y}
+		coords = append(coords, cord)
+	}
+
+	coords = coords[:1024]
+	coordsMap := make(map[Pair]bool, 0)
+	for _, cord := range coords {
+		coordsMap[cord] = true
+	}
+
+	gridSize := 71
+
+	grid := make([][]string, 0)
+	for j := 0; j < gridSize; j++ {
+		row := make([]string, 0)
+		for i := 0; i < gridSize; i++ {
+			if _, ok := coordsMap[Pair{i, j}]; ok {
+				row = append(row, "#")
+			} else {
+				row = append(row, ".")
+			}
+		}
+		grid = append(grid, row)
+	}
+	fmt.Printf("Got grid: %d\n", len(grid))
+
+	for _, row := range grid {
+		for _, letter := range row {
+			fmt.Printf("%s", letter)
+		}
+		fmt.Printf("\n")
+	}
+	queue := make([]Iteration, 0)
+	distances := make(map[Pair]int, 0)
+	for i := range grid {
+		for j := range grid[i] {
+			distances[Pair{i, j}] = math.MaxInt32
+		}
+	}
+	start := Pair{0, 0}
+	distances[start] = 0
+	startIter := Iteration{start, Pair{1, 0}}
+	queue = append(queue, startIter)
+	for len(queue) > 0 {
+		iter := queue[len(queue)-1]
+		queue = queue[:len(queue)-1]
+
+		for _, dir := range []Pair{{0, 1}, {1, 0}, {0, -1}, {-1, 0}} {
+			if dir.x == -iter.direction.x && dir.y == -iter.direction.y {
+				continue
+			}
+
+			next := Pair{iter.current.x + dir.x, iter.current.y + dir.y}
+			fmt.Printf("Next: %v\n", next)
+			if isOutOfBounds(next, len(grid), len(grid[0])) {
+				fmt.Printf("Out of bounds\n")
+				continue
+			}
+			if grid[next.x][next.y] == "#" {
+				fmt.Printf("Hit wall\n")
+				continue
+			}
+
+			if distances[next] > distances[iter.current]+1 {
+				distances[next] = distances[iter.current] + 1
+				queue = append(queue, Iteration{next, dir})
+			}
+		}
+
+		sort.Slice(queue, func(i, j int) bool {
+			return distances[queue[i].current] > distances[queue[j].current]
+		})
+	}
+
+	minCost := distances[Pair{gridSize - 1, gridSize - 1}]
+	fmt.Printf("Got min cost: %d\n", minCost)
+
+}
+func day18Part2(inputFile string) {
+	input := readInput(inputFile)
+	trimmmed := strings.Trim(input, "\n")
+	coords := make([]Pair, 0)
+	for _, line := range strings.Split(trimmmed, "\n") {
+		coord := strings.Split(line, ",")
+		x, _ := strconv.Atoi(coord[0])
+		y, _ := strconv.Atoi(coord[1])
+		cord := Pair{x, y}
+		coords = append(coords, cord)
+	}
+
+	for k := 1; k < len(coords); k++ {
+		coords := coords[:k]
+		coordsMap := make(map[Pair]bool, 0)
+		for _, cord := range coords {
+			coordsMap[cord] = true
+		}
+
+		gridSize := 71
+
+		grid := make([][]string, 0)
+		for j := 0; j < gridSize; j++ {
+			row := make([]string, 0)
+			for i := 0; i < gridSize; i++ {
+				if _, ok := coordsMap[Pair{i, j}]; ok {
+					row = append(row, "#")
+				} else {
+					row = append(row, ".")
+				}
+			}
+			grid = append(grid, row)
+		}
+
+		queue := make([]Iteration, 0)
+		distances := make(map[Pair]int, 0)
+		for i := range grid {
+			for j := range grid[i] {
+				distances[Pair{i, j}] = math.MaxInt32
+			}
+		}
+		start := Pair{0, 0}
+		distances[start] = 0
+		startIter := Iteration{start, Pair{1, 0}}
+		queue = append(queue, startIter)
+		for len(queue) > 0 {
+			iter := queue[len(queue)-1]
+			queue = queue[:len(queue)-1]
+
+			for _, dir := range []Pair{{0, 1}, {1, 0}, {0, -1}, {-1, 0}} {
+				if dir.x == -iter.direction.x && dir.y == -iter.direction.y {
+					continue
+				}
+
+				next := Pair{iter.current.x + dir.x, iter.current.y + dir.y}
+				if isOutOfBounds(next, len(grid), len(grid[0])) {
+					continue
+				}
+				if grid[next.x][next.y] == "#" {
+					continue
+				}
+
+				if distances[next] > distances[iter.current]+1 {
+					distances[next] = distances[iter.current] + 1
+					queue = append(queue, Iteration{next, dir})
+				}
+			}
+
+			sort.Slice(queue, func(i, j int) bool {
+				return distances[queue[i].current] > distances[queue[j].current]
+			})
+		}
+
+		minCost := distances[Pair{gridSize - 1, gridSize - 1}]
+		fmt.Printf("Got min cost: %d, %d, %v\n", minCost, k, coords[k-1])
+		if minCost == math.MaxInt32 {
+			break
+		}
+	}
 }
