@@ -170,6 +170,14 @@ func main() {
 		} else {
 			fmt.Printf("Unknown part: %d\n", part)
 		}
+	case 19:
+		if part == 1 {
+			day19Part1(input)
+		} else if part == 2 {
+			day19Part2(input)
+		} else {
+			fmt.Printf("Unknown part: %d\n", part)
+		}
 	default:
 		fmt.Printf("Unknown day: %d\n", day)
 	}
@@ -3162,4 +3170,122 @@ func day18Part2(inputFile string) {
 			break
 		}
 	}
+}
+
+// Day 19
+type Match struct {
+	start int
+	end   int
+	parts []string
+}
+
+func day19Part1(inputFile string) {
+	input := readInput(inputFile)
+	trimmed := strings.Trim(input, "\n")
+	sections := strings.Split(trimmed, "\n\n")
+
+	components := make(map[string]bool, 0)
+	for _, word := range strings.Split(sections[0], ", ") {
+		components[word] = true
+	}
+	max_component_len := 0
+	for component := range components {
+		if len(component) > max_component_len {
+			max_component_len = len(component)
+		}
+
+	}
+
+	combinations := make([]string, 0)
+	for _, word := range strings.Split(sections[1], "\n") {
+		combinations = append(combinations, word)
+	}
+
+	possible := 0
+	for _, combination := range combinations[:] {
+		start := possible
+		seen := make(map[string]bool, 0)
+		fmt.Printf("%s: ", combination)
+		matches := make([]Match, 0)
+		matches = append(matches, Match{0, 0, make([]string, 0)})
+	match_loop:
+		for len(matches) > 0 {
+			newMatches := make([]Match, 0)
+			for _, match := range matches {
+				if match.end == len(combination) {
+					fmt.Printf("Possible\n")
+					possible++
+					break match_loop
+				}
+				for i := match.end; i <= len(combination) && i <= match.end+max_component_len; i++ {
+					part := combination[match.end:i]
+					if _, ok := components[part]; ok {
+						match := Match{match.end, i, append(match.parts, part)}
+						if _, ok := seen[strings.Join(match.parts, "")]; !ok {
+							seen[strings.Join(match.parts, "")] = true
+							newMatches = append(newMatches, match)
+						}
+					}
+				}
+			}
+			matches = newMatches
+		}
+		if start == possible {
+			fmt.Printf("Impossible\n")
+		}
+	}
+
+	fmt.Printf("Got possible: %d\n", possible)
+
+}
+
+func day19Part2(inputFile string) {
+
+	input := readInput(inputFile)
+	trimmed := strings.Trim(input, "\n")
+	sections := strings.Split(trimmed, "\n\n")
+
+	components := make([]string, 0)
+	for _, word := range strings.Split(sections[0], ", ") {
+		components = append(components, word)
+	}
+
+	combinations := make([]string, 0)
+	for _, word := range strings.Split(sections[1], "\n") {
+		combinations = append(combinations, word)
+	}
+
+	total := 0
+	for _, combination := range combinations {
+		seen := make(map[string]int, 0)
+		value := solve(combination, components, seen, []string{})
+		fmt.Printf("%s: %d\n", combination, value)
+		total += value
+	}
+
+	fmt.Printf("Got total: %d\n", total)
+
+}
+
+func solve(combination string, components []string, seen map[string]int, path []string) int {
+	if _, ok := seen[combination]; ok {
+		return seen[combination]
+	}
+
+	if combination == "" {
+		return 1
+	}
+
+	count := 0
+	for _, component := range components {
+		if strings.HasPrefix(combination, component) {
+			newPath := make([]string, len(path))
+			copy(newPath, path)
+			newPath = append(newPath, component)
+			value := solve(combination[len(component):], components, seen, newPath)
+			count += value
+		}
+	}
+	seen[combination] = count
+	return count
 }
